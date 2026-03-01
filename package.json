@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",
+    "dev": "bun run src/server/index.ts examples/advanced_test.bunbk.md",
     "check": "tsc --noEmit"
   },
   "bin": {
