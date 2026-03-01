@@ -186,6 +186,7 @@ function renderNotebook(data: BunbookResult) {
                   doc: chunk.content,
                   extensions: [
                       basicSetup, oneDark, markdown(),
+                      EditorView.lineWrapping,
                       EditorView.domEventHandlers({
                           blur: () => {
                               chunkWrapper.classList.remove('editing');
@@ -228,6 +229,7 @@ function renderNotebook(data: BunbookResult) {
                   doc: chunk.content,
                   extensions: [
                       basicSetup, oneDark, javascript({ typescript: true }),
+                      EditorView.lineWrapping,
                       autocompletion({ override: [notebookCompletions] }),
                       lintGutter(), linter(view => notebookLinter(view)),
                       notebookTooltips(),
