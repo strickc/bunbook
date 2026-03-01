@@ -35,39 +35,7 @@ body {
 .file-item:hover { background: #2d3748; color: #fff; }
 .file-item.active { background: #fe4a49; color: #fff; font-weight: bold; }
 
-/* CodeMirror Custom Styles */
-.notebook-code-editor {
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 10px 0;
-}
-.cm-editor {
-    height: auto;
-}
-.cm-lintRange-error {
-    background: rgba(254, 74, 73, 0.1);
-    text-decoration: underline wavy #fe4a49;
-}
-.cm-lint-marker-error {
-    color: #fe4a49;
-    font-size: 0.8rem;
-}
-
-/* Cell Controls & Feedback */
-.cell-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 15px;
-    margin-top: 5px;
-}
-.save-status {
-    font-size: 0.75rem;
-    color: #718096;
-    font-style: italic;
-}
-/* Removed Run Button styles */
+/* Main Content Area */
 .content {
     flex: 1; display: flex; flex-direction: column; overflow-y: auto;
 }
@@ -85,11 +53,30 @@ body {
     border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .notebook-markdown { margin: 20px 0; }
-.notebook-code {
-    background: #f8f9fa; border-left: 4px solid #fecaca;
-    padding: 12px; border-radius: 4px; margin: 10px 0;
+.notebook-code-editor {
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
 }
-.notebook-code pre { margin: 0; font-family: "Fira Code", "Courier New", monospace; font-size: 0.9em; overflow-x: auto; }
+.cm-editor {
+    height: auto;
+}
+.cm-scroller {
+    font-family: inherit;
+}
+
+/* Red Squiggles / Lint Styles */
+.cm-lintRange-error {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 3 L3 0 L6 3' fill='none' stroke='%23ff0000' stroke-width='.7'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: bottom;
+    padding-bottom: 1px;
+}
+.cm-lint-marker-error {
+    color: #ff0000;
+}
+
 .notebook-output {
     background: #2d3748; color: #edf2f7; padding: 12px;
     border-radius: 4px; margin-top: 10px;
@@ -99,9 +86,23 @@ body {
 
 /* Status Indicator */
 .status-indicator { font-size: 0.8em; color: #48bb78; }
+.status-indicator.disconnected { color: #fe4a49; }
 
 /* Tables in Output */
 .notebook-output table { width: 100%; border-collapse: collapse; margin: 10px 0; }
 .notebook-output th, .notebook-output td { padding: 6px 12px; border: 1px solid #4a5568; text-align: left; }
 .notebook-output th { background: #1a202c; color: #48bb78; }
 .notebook-output tr:nth-child(even) { background: #283141; }
+
+.cell-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 15px;
+    margin-top: 5px;
+}
+.save-status {
+    font-size: 0.75rem;
+    color: #718096;
+    font-style: italic;
+}

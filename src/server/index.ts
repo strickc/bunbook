@@ -9,9 +9,12 @@ async function buildFrontend() {
   
   console.log("Building frontend...");
   await Bun.build({
-    entrypoints: [join(frontendDir, "main.ts")],
+    entrypoints: [
+      join(frontendDir, "main.ts"),
+      join(frontendDir, "worker.ts") // Add worker as a build target
+    ],
     outdir: publicDir,
-    naming: "bundle.js",
+    naming: "[name].js",
     minify: true,
   });
   

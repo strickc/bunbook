@@ -17,7 +17,7 @@ We re-declare `const` (transpiled to `var`) and use the function from the previo
 const name = "Alice";
 state.users.push(name);
 increment(); 
-increment();
+increment(1);
 console.log(`Count is now: ${state.count}`);
 console.log(`Users: ${JSON.stringify(state.users)}`);
 ```
