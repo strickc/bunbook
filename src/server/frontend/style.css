@@ -49,84 +49,79 @@ body {
 /* Notebook Renderer Styles */
 #notebook { padding: 40px; width: 100%; max-width: 1000px; margin: 0 auto; }
 .notebook-block {
-    background: white; padding: 0; margin-bottom: 25px;
-    border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    overflow: hidden;
+    background: transparent; padding: 0; margin-bottom: 30px;
 }
 .notebook-markdown { margin: 20px 0; }
 
 .block-header {
-    background: #f8fafc;
-    padding: 8px 16px;
-    border-bottom: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
     user-select: none;
+    margin-bottom: 8px;
+    width: fit-content;
+    min-width: 150px;
 }
-.block-header:hover { background: #f1f5f9; }
-.block-title { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; }
+.block-header:hover { background: #e2e8f0; }
+.block-title { font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
 
 .notebook-code-editor {
-    border: none;
-    border-radius: 0;
-    margin: 0;
-    display: none; /* Collapsed by default */
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 10px 0;
+    display: none;
 }
 .notebook-block.expanded .notebook-code-editor {
     display: block;
-    border-bottom: 1px solid #e2e8f0;
 }
 
-.cm-editor {
-    height: auto;
-}
-.cm-scroller {
-    font-family: inherit;
+.notebook-output {
+    padding: 2px 0 2px 20px;
+    margin: 15px 0;
+    font-size: 0.95em;
+    border-left: 4px solid #48bb78;
+    color: #4a5568;
 }
 
-/* Red Squiggles / Lint Styles */
+/* Tables in Output - Normal MD Look */
+.notebook-output table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin: 15px 0; 
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.notebook-output th, .notebook-output td { 
+    padding: 10px 14px; 
+    border: 1px solid #e2e8f0; 
+    text-align: left; 
+}
+.notebook-output th { 
+    background: #f8fafc; 
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 2px solid #e2e8f0;
+}
+.notebook-output tr:nth-child(even) { background: #fdfdfd; }
+
+.status-indicator { font-size: 0.8em; color: #48bb78; }
+.status-indicator.disconnected { color: #fe4a49; }
+
+.cm-editor { height: auto; }
+.cm-scroller { font-family: inherit; }
+
 .cm-lintRange-error {
     background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 3 L3 0 L6 3' fill='none' stroke='%23ff0000' stroke-width='.7'/%3E%3C/svg%3E");
     background-repeat: repeat-x;
     background-position: bottom;
     padding-bottom: 1px;
 }
-.cm-lint-marker-error {
-    color: #ff0000;
-}
-
-.notebook-output {
-    background: #2d3748; color: #edf2f7; padding: 16px;
-    font-family: "Fira Code", "Courier New", monospace; font-size: 0.9em;
-    white-space: pre-wrap; border-left: 4px solid #48bb78;
-}
-
-/* Status Indicator */
-.status-indicator { font-size: 0.8em; color: #48bb78; }
-.status-indicator.disconnected { color: #fe4a49; }
-
-/* Tables in Output */
-.notebook-output table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-.notebook-output th, .notebook-output td { padding: 6px 12px; border: 1px solid #4a5568; text-align: left; }
-.notebook-output th { background: #1a202c; color: #48bb78; }
-.notebook-output tr:nth-child(even) { background: #283141; }
-
-.cell-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 15px;
-    padding: 4px 16px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-}
-.notebook-block.collapsed .cell-controls {
-    display: none;
-}
-.save-status {
-    font-size: 0.7rem;
-    color: #94a3b8;
-    font-style: italic;
-}
+.cm-lint-marker-error { color: #ff0000; }

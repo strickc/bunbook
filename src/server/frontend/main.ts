@@ -303,41 +303,35 @@ function formatOutput(lines: string[]): string {
   const isTable = lines.some(line => line.includes('┌') || line.includes('│'));
   
   if (isTable) {
-    const table = document.createElement('table');
-    table.className = 'output-table';
+    const tableLines: string[] = [];
     const nonTableLines: string[] = [];
     
     lines.forEach(line => {
       if (line.includes('│')) {
-        const row = document.createElement('tr');
         const cells = line.split('│').map(c => c.trim());
         if (cells[0] === '') cells.shift();
         if (cells[cells.length - 1] === '') cells.pop();
-
+        
         if (cells.length > 0) {
-          cells.forEach(cell => {
-            const isHeader = line.includes('index') || line.includes('┌') || line.includes('┬');
-            const td = document.createElement(isHeader ? 'th' : 'td');
-            td.innerText = cell;
-            row.appendChild(td);
-          });
-          table.appendChild(row);
+            tableLines.push(`| ${cells.join(' | ')} |`);
+            // Add the separator row after the first row (the header)
+            if (tableLines.length === 1) {
+                tableLines.push(`| ${cells.map(() => '---').join(' | ')} |`);
+            }
         }
       } else if (!line.includes('─') && !line.includes('┌') && !line.includes('└') && line.trim() !== '') {
         nonTableLines.push(line);
       }
     });
     
-    const container = document.createElement('div');
-    container.appendChild(table);
-    if (nonTableLines.length > 0) {
-      const textDiv = document.createElement('pre');
-      textDiv.innerText = nonTableLines.join('\n');
-      container.appendChild(textDiv);
-    }
-    return container.innerHTML;
+    // Render the table markdown and then append the rest
+    const tableMd = tableLines.join('\n');
+    const result = md.render(tableMd) + nonTableLines.map(l => md.render(l)).join('\n');
+    return result;
   }
-  return lines.join("\n");
+  
+  // Normal output: render each line through markdown
+  return lines.map(line => md.render(line)).join('\n');
 }
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
