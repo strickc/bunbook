@@ -80,6 +80,14 @@ function renderNotebook(data) {
       editorContainer.className = "notebook-code-editor";
       resGroup.appendChild(editorContainer);
 
+      const controls = document.createElement("div");
+      controls.className = "cell-controls";
+      controls.innerHTML = `
+        <span class="save-status"></span>
+        <button class="run-btn" title="Run (Shift+Enter)"><i class="lucide-play"></i> Run</button>
+      `;
+      resGroup.appendChild(controls);
+
       // Initialize CodeMirror
       const view = new EditorView({
         state: EditorState.create({
@@ -88,7 +96,10 @@ function renderNotebook(data) {
             basicSetup,
             javascript({ typescript: true }),
             oneDark,
-            keymap.of([indentWithTab]),
+            keymap.of([
+              indentWithTab,
+              { key: "Shift-Enter", run: () => { saveChanges(blockIndex, view.state.doc.toString()); return true; } }
+            ]),
             EditorView.updateListener.of((update) => {
               if (update.docChanged) {
                 onCodeChange(blockIndex, view.state.doc.toString());
@@ -98,6 +109,11 @@ function renderNotebook(data) {
         }),
         parent: editorContainer
       });
+      
+      controls.querySelector(".run-btn").addEventListener("click", () => {
+        saveChanges(blockIndex, view.state.doc.toString());
+      });
+
       editors.set(blockIndex, view);
 
       const blockOutputs = data.outputs[blockIndex] || [];
@@ -133,6 +149,10 @@ function onCodeChange(blockIndex, newCode) {
 
 async function saveChanges(blockIndex, newCode) {
     if (!currentFile) return;
+    const blockDivs = document.querySelectorAll('.notebook-block');
+    const statusSpan = blockDivs[blockIndex]?.querySelector('.save-status');
+    if (statusSpan) statusSpan.innerText = "Saving...";
+
     try {
         await fetch("/api/save-block", {
             method: "POST",
@@ -143,9 +163,13 @@ async function saveChanges(blockIndex, newCode) {
                 code: newCode
             })
         });
-        // The server watcher will trigger an update, which will re-run the notebook.
+        if (statusSpan) {
+            statusSpan.innerText = "Saved";
+            setTimeout(() => { if (statusSpan.innerText === "Saved") statusSpan.innerText = ""; }, 2000);
+        }
     } catch (err) {
         console.error("Failed to save changes:", err);
+        if (statusSpan) statusSpan.innerText = "Error!";
     }
 }
 
