@@ -92,9 +92,9 @@ body {
 .notebook-output th { background: #f8fafc; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
 .notebook-output tr:nth-child(even) { background: #fdfdfd; }
 
-.cm-editor { height: auto; }
+.cm-editor { height: auto; font-size: 1.1rem; }
 .cm-scroller { font-family: inherit; }
-.buneval-chunk .cm-scroller { font-family: "Fira Code", monospace; }
+.buneval-chunk .cm-scroller { font-family: "Fira Code", monospace; font-size: 1rem; }
 
 .status-indicator { font-size: 0.8em; color: #48bb78; }
 .cm-lintRange-error {
