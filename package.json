@@ -25,6 +25,9 @@
     "@codemirror/commands": "^6.0.0",
     "@codemirror/lang-javascript": "^6.0.0",
     "@codemirror/theme-one-dark": "^6.0.0",
+    "@codemirror/autocomplete": "^6.0.0",
+    "@codemirror/lint": "^6.0.0",
+    "@codemirror/language-data": "^6.0.0",
     "markdown-it": "^14.1.0"
   }
 }

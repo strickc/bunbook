@@ -4,6 +4,8 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
+import { autocompletion } from "@codemirror/autocomplete";
+import { lintGutter } from "@codemirror/lint";
 import MarkdownIt from "markdown-it";
 
 const md = new MarkdownIt();
@@ -95,6 +97,8 @@ function renderNotebook(data) {
             basicSetup,
             javascript({ typescript: true }),
             oneDark,
+            autocompletion(),
+            lintGutter(),
             keymap.of([
               indentWithTab,
               { key: "Shift-Enter", run: () => { saveChanges(blockIndex, view.state.doc.toString()); return true; } }
