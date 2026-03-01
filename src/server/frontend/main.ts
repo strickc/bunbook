@@ -4,7 +4,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
-import { autocompletion } from "@codemirror/autocomplete";
+import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { lintGutter } from "@codemirror/lint";
 import MarkdownIt from "markdown-it";
 
@@ -16,6 +16,36 @@ const sidebarTitle = document.getElementById("current-filename");
 
 let currentFile = null;
 const editors = new Map(); // blockIndex -> EditorView
+
+/**
+ * Custom Completion Provider for Notebook-Wide awareness.
+ * It scans all editors in the notebook to find defined variables/functions.
+ */
+function notebookCompletions(context: CompletionContext) {
+  let word = context.matchBefore(/\w*/);
+  if (!word || (word.from === word.to && !context.explicit)) return null;
+
+  const options = [];
+  const seen = new Set();
+
+  editors.forEach((view, index) => {
+    const text = view.state.doc.toString();
+    // Simple regex to find top-level declarations
+    const matches = text.matchAll(/(?:const|let|var|function)\s+([a-zA-Z0-9_$]+)/g);
+    for (const match of matches) {
+      const name = match[1];
+      if (!seen.has(name)) {
+        options.push({ label: name, type: text.includes('function') ? 'function' : 'variable', info: `From Block ${index}` });
+        seen.add(name);
+      }
+    }
+  });
+
+  return {
+    from: word.from,
+    options: options
+  };
+}
 
 async function loadFiles() {
   const response = await fetch("/api/files");
@@ -97,7 +127,7 @@ function renderNotebook(data) {
             basicSetup,
             javascript({ typescript: true }),
             oneDark,
-            autocompletion(),
+            autocompletion({ override: [notebookCompletions] }),
             lintGutter(),
             keymap.of([
               indentWithTab,

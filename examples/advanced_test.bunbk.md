@@ -18,7 +18,6 @@ const name = "Alice";
 state.users.push(name);
 increment(); 
 increment();
-increment();
 console.log(`Count is now: ${state.count}`);
 console.log(`Users: ${JSON.stringify(state.users)}`);
 ```

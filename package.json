@@ -28,6 +28,8 @@
     "@codemirror/autocomplete": "^6.0.0",
     "@codemirror/lint": "^6.0.0",
     "@codemirror/language-data": "^6.0.0",
+    "@overleaf/codemirror-ts": "^0.3.0",
+    "typescript": "^5.3.3",
     "markdown-it": "^14.1.0"
   }
 }
