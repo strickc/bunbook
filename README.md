@@ -8,7 +8,7 @@ Think of it as Jupyter Notebooks, but specifically optimized for Bun developers�
 
 ## ⚡️ Quick Install
 
-Install Bunbook globally on your machine with a single command (no npm publish required):
+Install Bunbook globally on your machine:
 
 ```bash
 bun install -g github:strickc/bunbook

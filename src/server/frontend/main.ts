@@ -19,6 +19,7 @@ const sidebarTitle = document.getElementById("current-filename");
 
 let currentFile: string | null = null;
 const chunkEditors = new Map<number, EditorView>();
+const expandedBlocks = new Set<number>();
 
 const tsWorker = new Worker("worker.js");
 let pendingDiagnostics = new Map<number, Diagnostic[]>();
@@ -142,6 +143,7 @@ async function loadFiles() {
 
 async function selectFile(file: string) {
   currentFile = file;
+  expandedBlocks.clear(); // Reset expanded state when switching files
   if (sidebarTitle) sidebarTitle.innerText = file;
   document.querySelectorAll('.file-item').forEach(el => {
       if (el instanceof HTMLElement) el.classList.toggle('active', el.innerText === file);
@@ -215,13 +217,23 @@ function renderNotebook(data: BunbookResult) {
           
           chunkWrapper.appendChild(header);
           chunkWrapper.appendChild(editorContainer);
-          chunkWrapper.classList.add('collapsed');
+          
+          // Use the tracking set to determine initial state
+          const isExpanded = expandedBlocks.has(chunk.blockIndex!);
+          chunkWrapper.classList.toggle('collapsed', !isExpanded);
+          chunkWrapper.classList.toggle('expanded', isExpanded);
+          const initialIcon = chunkWrapper.classList.contains("collapsed") ? "▼" : "▲";
+          header.querySelector(".block-toggle-icon")!.textContent = initialIcon;
           
           header.onclick = () => {
-              chunkWrapper.classList.toggle('collapsed');
-              chunkWrapper.classList.toggle('expanded');
+              const nowCollapsed = chunkWrapper.classList.toggle('collapsed');
+              chunkWrapper.classList.toggle('expanded', !nowCollapsed);
+              
+              if (nowCollapsed) expandedBlocks.delete(chunk.blockIndex!);
+              else expandedBlocks.add(chunk.blockIndex!);
+
               const icon = header.querySelector(".block-toggle-icon");
-              if (icon) icon.textContent = chunkWrapper.classList.contains("collapsed") ? "▼" : "▲";
+              if (icon) icon.textContent = nowCollapsed ? "▼" : "▲";
           };
 
           const view = new EditorView({
