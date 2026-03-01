@@ -27,8 +27,9 @@ bun run bunbook.ts my_file.bunbk.md --no-code -o
 ## Tips for Agents
 1.  **Iterative Development**: Use Bunbook to prototype complex logic or data processing steps across multiple blocks.
 2.  **Shared State**: Use a global `state` object or simple top-level variables to pass data between cells.
-3.  **Error Handling**: Each block is wrapped in a `try/catch`. If one block fails, the execution continues to the next block, allowing you to see partial results.
-4.  **Async Operations**: Perfect for testing APIs or crawling sites before committing to a full script.
+3.  **Use `console.table()`**: For data arrays or complex objects, `console.table(data)` will be rendered as a beautiful, readable HTML table in the web server and CLI.
+4.  **Error Handling**: Each block is wrapped in a `try/catch`. If one block fails, the execution continues to the next block, allowing you to see partial results.
+5.  **Async Operations**: Perfect for testing APIs or crawling sites before committing to a full script.
 
 ## Example
 ```markdown

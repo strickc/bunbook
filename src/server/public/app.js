@@ -40,7 +40,8 @@ function renderNotebook(data) {
       if (blockOutputs.length > 0) {
         const outDiv = document.createElement("div");
         outDiv.className = "notebook-output";
-        outDiv.innerText = blockOutputs.join("\n");
+        // Use custom formatter to handle console.table etc
+        outDiv.innerHTML = formatOutput(blockOutputs);
         resGroup.appendChild(outDiv);
       }
       
@@ -50,13 +51,55 @@ function renderNotebook(data) {
       currentGroup.push(data.originalLines[i]);
     }
   }
-  
+
   if (currentGroup.length > 0) {
     const lastDiv = document.createElement("div");
     lastDiv.className = "notebook-markdown";
     lastDiv.innerHTML = md.render(currentGroup.join("\n"));
     notebookElement.appendChild(lastDiv);
   }
+}
+
+/**
+ * Detects if a block of text looks like a console.table output and renders it as an HTML table.
+ */
+function formatOutput(lines) {
+  if (lines.length === 0) return "";
+  
+  // Basic detection for console.table output which usually has ┌───────┬──────────┐ structure
+  const isTable = lines.some(line => line.includes('┌') || line.includes('├') || line.includes('│'));
+  
+  if (isTable) {
+    // Highly simplified table parser for Bun's console.table output
+    // We'll strip the box-drawing characters and clean up the cells.
+    const table = document.createElement('table');
+    table.className = 'output-table';
+    
+    lines.forEach(line => {
+      // Skip the decorative borders but keep the data rows
+      if (line.includes('─') && !line.includes('│')) return;
+      
+      const row = document.createElement('tr');
+      const cells = line.split('│').filter(c => c.trim() !== '' || line.indexOf('│') !== line.lastIndexOf('│'));
+      
+      if (cells.length > 0) {
+        cells.forEach(cell => {
+          const td = document.createElement(line.includes('index') ? 'th' : 'td');
+          td.innerText = cell.trim();
+          row.appendChild(td);
+        });
+        table.appendChild(row);
+      }
+    });
+    
+    if (table.children.length > 0) {
+        const container = document.createElement('div');
+        container.appendChild(table);
+        return container.innerHTML;
+    }
+  }
+
+  return lines.join("\n");
 }
 
 // Set up WebSocket

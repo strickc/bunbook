@@ -49,4 +49,22 @@ header h1 span { color: #fe4a49; }
     border-left: 4px solid #48bb78;
 }
 
+.notebook-output table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+.notebook-output th, .notebook-output td {
+    padding: 6px 12px;
+    border: 1px solid #4a5568;
+    text-align: left;
+}
+.notebook-output th {
+    background: #1a202c;
+    color: #48bb78;
+}
+.notebook-output tr:nth-child(even) {
+    background: #283141;
+}
+
 @media (max-width: 600px) { body { padding: 10px; } }
