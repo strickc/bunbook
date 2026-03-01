@@ -13,6 +13,7 @@ export interface BunbookResult {
   blocks: BunbookBlock[];
   outputs: Record<number, string[]>;
   stderr: string;
+  timestamp: string;
 }
 
 export async function parseBunbook(filePath: string): Promise<{ lines: string[]; blocks: BunbookBlock[] }> {
@@ -60,7 +61,7 @@ export async function runNotebook(filePath: string): Promise<BunbookResult> {
   const { lines, blocks } = await parseBunbook(filePath);
 
   if (blocks.length === 0) {
-    return { originalLines: lines, blocks: [], outputs: new Map(), stderr: "" };
+    return { originalLines: lines, blocks: [], outputs: {}, stderr: "", timestamp: new Date().toLocaleTimeString() };
   }
 
   const script = transpile(blocks);
@@ -85,5 +86,5 @@ export async function runNotebook(filePath: string): Promise<BunbookResult> {
   });
 
   await unlink(tmpFile);
-  return { originalLines: lines, blocks, outputs, stderr };
+  return { originalLines: lines, blocks, outputs, stderr, timestamp: new Date().toLocaleTimeString() };
 }

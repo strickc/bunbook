@@ -15,7 +15,6 @@ async function buildFrontend() {
     minify: true,
   });
   
-  // Also copy index.html and style.css to public
   await Bun.write(join(publicDir, "index.html"), await Bun.file(join(frontendDir, "index.html")).text());
   await Bun.write(join(publicDir, "style.css"), await Bun.file(join(frontendDir, "style.css")).text());
 }
@@ -25,7 +24,6 @@ await buildFrontend();
 const port = process.env.PORT || 3000;
 let currentFilePath = process.argv[2] || null;
 let watcher: FSWatcher | null = null;
-
 const publicDir = join(import.meta.dir, "public");
 
 const server = Bun.serve({
@@ -49,10 +47,7 @@ const server = Bun.serve({
         currentFilePath = fileParam;
         setupWatcher(currentFilePath);
       }
-      
-      if (!currentFilePath) {
-        return new Response("No file selected", { status: 400 });
-      }
+      if (!currentFilePath) return new Response("No file selected", { status: 400 });
       
       try {
         const result = await runNotebook(currentFilePath);
@@ -65,32 +60,27 @@ const server = Bun.serve({
     if (url.pathname === "/api/save-block" && req.method === "POST") {
       const { file, blockIndex, code } = await req.json() as { file: string, blockIndex: number, code: string };
       await saveBlock(file, blockIndex, code);
-      return new Response("Saved", { status: 200 });
+      // Immediately run the notebook and return the NEW results to the browser
+      const result = await runNotebook(file);
+      return Response.json(result);
     }
 
     let path = url.pathname === "/" ? "/index.html" : url.pathname;
     const file = Bun.file(join(publicDir, path));
-    if (await file.exists()) {
-      return new Response(file);
-    }
+    if (await file.exists()) return new Response(file);
 
     return new Response("Not Found", { status: 404 });
   },
   websocket: {
-    open(ws) {
-      ws.subscribe("notebook-updates");
-    },
+    open(ws) { ws.subscribe("notebook-updates"); },
     message(ws, message) {},
-    close(ws) {
-      ws.unsubscribe("notebook-updates");
-    },
+    close(ws) { ws.unsubscribe("notebook-updates"); },
   },
 });
 
 async function scanForBunbooks(dir: string, baseDir = ""): Promise<string[]> {
   const entries = await readdir(join(dir, baseDir), { withFileTypes: true });
   let files: string[] = [];
-
   for (const entry of entries) {
     const fullRelativePath = join(baseDir, entry.name);
     if (entry.isDirectory()) {
@@ -100,13 +90,12 @@ async function scanForBunbooks(dir: string, baseDir = ""): Promise<string[]> {
       files.push(fullRelativePath);
     }
   }
-
   return files;
 }
 
 async function saveBlock(filePath: string, blockIndex: number, newCode: string) {
     const fullPath = join(process.cwd(), filePath);
-    const content = await readFile(fullPath, "utf-8");
+    const content = await Bun.file(fullPath).text();
     const lines = content.split("\n");
     
     let blockCount = 0;
@@ -117,9 +106,7 @@ async function saveBlock(filePath: string, blockIndex: number, newCode: string) 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line.startsWith("```buneval")) {
-            if (blockCount === blockIndex) {
-                startLine = i;
-            }
+            if (blockCount === blockIndex) startLine = i;
             inBlock = true;
         } else if (line.startsWith("```") && inBlock) {
             if (blockCount === blockIndex) {
@@ -132,12 +119,15 @@ async function saveBlock(filePath: string, blockIndex: number, newCode: string) 
     }
 
     if (startLine !== -1 && endLine !== -1) {
+        const linesBefore = lines.slice(0, startLine + 1);
+        const linesAfter = lines.slice(endLine);
         const newLines = [
-            ...lines.slice(0, startLine + 1),
+            ...linesBefore,
             newCode,
-            ...lines.slice(endLine)
+            ...linesAfter
         ];
-        await writeFile(fullPath, newLines.join("\n"));
+        await Bun.write(fullPath, newLines.join("\n"));
+        console.log(`Saved block ${blockIndex} to ${filePath}`);
     }
 }
 
@@ -149,8 +139,5 @@ function setupWatcher(path: string) {
     });
 }
 
-if (currentFilePath) {
-    setupWatcher(currentFilePath);
-}
-
+if (currentFilePath) setupWatcher(currentFilePath);
 console.log(`Bunbook Server started at http://localhost:${port}`);

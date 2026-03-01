@@ -154,7 +154,7 @@ async function saveChanges(blockIndex, newCode) {
     if (statusSpan) statusSpan.innerText = "Saving...";
 
     try {
-        await fetch("/api/save-block", {
+        const response = await fetch("/api/save-block", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -163,6 +163,10 @@ async function saveChanges(blockIndex, newCode) {
                 code: newCode
             })
         });
+        const data = await response.json();
+        // Immediately update with the new results from the save response
+        updateUIWithResults(data);
+
         if (statusSpan) {
             statusSpan.innerText = "Saved";
             setTimeout(() => { if (statusSpan.innerText === "Saved") statusSpan.innerText = ""; }, 2000);
@@ -221,6 +225,11 @@ async function updateOutputsOnly() {
     if (!currentFile) return;
     const response = await fetch(`/api/notebook?file=${encodeURIComponent(currentFile)}`);
     const data = await response.json();
+    updateUIWithResults(data);
+}
+
+function updateUIWithResults(data) {
+    statusElement.innerText = "Connected - Updated: " + data.timestamp;
     
     // Update outputs for each block div
     data.blocks.forEach((block, index) => {
