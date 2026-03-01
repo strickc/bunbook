@@ -4,67 +4,72 @@ body {
     line-height: 1.6;
     background-color: #f4f6fb;
     color: #2e3b4e;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
+    margin: 0; padding: 0;
+    height: 100vh; overflow: hidden;
 }
-header {
+.layout {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #e1e7f1;
-    margin-bottom: 20px;
+    height: 100vh;
 }
-header h1 { margin: 0; color: #1a202c; }
-header h1 span { color: #fe4a49; }
-#status { font-size: 0.8em; color: green; }
 
+/* Sidebar Styling */
+#sidebar {
+    width: 280px;
+    background: #1a202c;
+    color: #edf2f7;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #4a5568;
+}
+#sidebar header { padding: 20px; border-bottom: 1px solid #2d3748; }
+#sidebar h1 { margin: 0; font-size: 1.5rem; color: #fff; }
+#sidebar h1 span { color: #fe4a49; }
+
+#file-list {
+    flex: 1; overflow-y: auto; padding: 15px 0;
+}
+.file-item {
+    padding: 10px 20px; cursor: pointer; color: #a0aec0; transition: all 0.2s;
+    font-size: 0.9em;
+}
+.file-item:hover { background: #2d3748; color: #fff; }
+.file-item.active { background: #fe4a49; color: #fff; font-weight: bold; }
+
+/* Main Content Area */
+.content {
+    flex: 1; display: flex; flex-direction: column; overflow-y: auto;
+}
+.top-bar {
+    background: #fff; border-bottom: 1px solid #e2e8f0; padding: 15px 30px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100;
+}
+#current-filename { font-weight: bold; color: #1a202c; }
+
+/* Notebook Renderer Styles */
+#notebook { padding: 40px; width: 100%; max-width: 1000px; margin: 0 auto; }
 .notebook-block {
-    background: white;
-    padding: 2px 20px 20px 20px;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    background: white; padding: 2px 20px 20px 20px; margin-bottom: 25px;
+    border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
-
 .notebook-markdown { margin: 20px 0; }
 .notebook-code {
-    background: #f8f9fa;
-    border-left: 4px solid #fecaca;
-    padding: 10px;
-    border-radius: 4px;
-    margin: 10px 0;
+    background: #f8f9fa; border-left: 4px solid #fecaca;
+    padding: 12px; border-radius: 4px; margin: 10px 0;
 }
-.notebook-code pre { margin: 0; font-family: "Fira Code", monospace; font-size: 0.9em; overflow-x: auto; }
-
+.notebook-code pre { margin: 0; font-family: "Fira Code", "Courier New", monospace; font-size: 0.9em; overflow-x: auto; }
 .notebook-output {
-    background: #2d3748;
-    color: #edf2f7;
-    padding: 10px;
-    border-radius: 4px;
-    margin-top: 10px;
-    font-family: "Fira Code", monospace;
-    font-size: 0.85em;
-    white-space: pre-wrap;
-    border-left: 4px solid #48bb78;
+    background: #2d3748; color: #edf2f7; padding: 12px;
+    border-radius: 4px; margin-top: 10px;
+    font-family: inherit; font-size: 0.9em;
+    white-space: pre-wrap; border-left: 4px solid #48bb78;
 }
 
-.notebook-output table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-}
-.notebook-output th, .notebook-output td {
-    padding: 6px 12px;
-    border: 1px solid #4a5568;
-    text-align: left;
-}
-.notebook-output th {
-    background: #1a202c;
-    color: #48bb78;
-}
-.notebook-output tr:nth-child(even) {
-    background: #283141;
-}
+/* Status Indicator */
+.status-indicator { font-size: 0.8em; color: #48bb78; }
 
-@media (max-width: 600px) { body { padding: 10px; } }
+/* Tables in Output */
+.notebook-output table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.notebook-output th, .notebook-output td { padding: 6px 12px; border: 1px solid #4a5568; text-align: left; }
+.notebook-output th { background: #1a202c; color: #48bb78; }
+.notebook-output tr:nth-child(even) { background: #283141; }

@@ -1,10 +1,45 @@
 const md = window.markdownit();
 const notebookElement = document.getElementById("notebook");
 const statusElement = document.getElementById("status");
+const fileListElement = document.getElementById("file-list");
+const sidebarTitle = document.getElementById("current-filename");
 
-async function fetchNotebook() {
+let currentFile = null;
+
+async function loadFiles() {
+  const response = await fetch("/api/files");
+  const data = await response.json();
+  
+  fileListElement.innerHTML = "";
+  data.files.forEach(file => {
+    const div = document.createElement("div");
+    div.className = `file-item ${data.current === file ? 'active' : ''}`;
+    div.innerText = file;
+    div.addEventListener("click", () => selectFile(file));
+    fileListElement.appendChild(div);
+  });
+  
+  if (data.current && !currentFile) {
+    selectFile(data.current);
+  }
+}
+
+async function selectFile(file) {
+  currentFile = file;
+  sidebarTitle.innerText = file;
+  
+  // Highlight active file in sidebar
+  document.querySelectorAll('.file-item').forEach(el => {
+    el.classList.toggle('active', el.innerText === file);
+  });
+  
+  fetchNotebook(file);
+}
+
+async function fetchNotebook(file = currentFile) {
+  if (!file) return;
   try {
-    const response = await fetch("/api/notebook");
+    const response = await fetch(`/api/notebook?file=${encodeURIComponent(file)}`);
     const data = await response.json();
     renderNotebook(data);
   } catch (err) {
@@ -27,6 +62,7 @@ function renderNotebook(data) {
         notebookElement.appendChild(div);
         currentGroup = [];
       }
+
       const block = data.blocks[blockIndex];
       const resGroup = document.createElement("div");
       resGroup.className = "notebook-block";
@@ -40,7 +76,6 @@ function renderNotebook(data) {
       if (blockOutputs.length > 0) {
         const outDiv = document.createElement("div");
         outDiv.className = "notebook-output";
-        // Use custom formatter to handle console.table etc
         outDiv.innerHTML = formatOutput(blockOutputs);
         resGroup.appendChild(outDiv);
       }
@@ -60,28 +95,17 @@ function renderNotebook(data) {
   }
 }
 
-/**
- * Detects if a block of text looks like a console.table output and renders it as an HTML table.
- */
 function formatOutput(lines) {
   if (lines.length === 0) return "";
-  
-  // Basic detection for console.table output which usually has ┌───────┬──────────┐ structure
-  const isTable = lines.some(line => line.includes('┌') || line.includes('├') || line.includes('│'));
+  const isTable = lines.some(line => line.includes('┌') || line.includes('│'));
   
   if (isTable) {
-    // Highly simplified table parser for Bun's console.table output
-    // We'll strip the box-drawing characters and clean up the cells.
     const table = document.createElement('table');
     table.className = 'output-table';
-    
     lines.forEach(line => {
-      // Skip the decorative borders but keep the data rows
       if (line.includes('─') && !line.includes('│')) return;
-      
       const row = document.createElement('tr');
       const cells = line.split('│').filter(c => c.trim() !== '' || line.indexOf('│') !== line.lastIndexOf('│'));
-      
       if (cells.length > 0) {
         cells.forEach(cell => {
           const td = document.createElement(line.includes('index') ? 'th' : 'td');
@@ -91,14 +115,10 @@ function formatOutput(lines) {
         table.appendChild(row);
       }
     });
-    
-    if (table.children.length > 0) {
-        const container = document.createElement('div');
-        container.appendChild(table);
-        return container.innerHTML;
-    }
+    const container = document.createElement('div');
+    container.appendChild(table);
+    return container.innerHTML;
   }
-
   return lines.join("\n");
 }
 
@@ -108,20 +128,23 @@ const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
 socket.onopen = () => {
     statusElement.innerText = "Connected";
-    statusElement.style.color = "green";
+    statusElement.className = "status-indicator connected";
 };
 
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    if (data.type === "reload") {
-        fetchNotebook();
+    if (data.type === "reload" && data.file === currentFile) {
+        fetchNotebook(currentFile);
     }
 };
 
 socket.onclose = () => {
     statusElement.innerText = "Disconnected";
-    statusElement.style.color = "red";
+    statusElement.className = "status-indicator disconnected";
 };
 
 // Initial Fetch
-fetchNotebook();
+loadFiles();
+if (!currentFile) {
+    fetchNotebook();
+}

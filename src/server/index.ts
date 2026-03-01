@@ -1,16 +1,12 @@
-import { watch } from "fs";
+import { watch, type FSWatcher } from "fs";
 import { join } from "path";
+import { readdir } from "fs/promises";
 import { runNotebook } from "../core/engine.js";
 
 const port = process.env.PORT || 3000;
-const filePath = process.argv[2];
+let currentFilePath = process.argv[2] || null;
+let watcher: FSWatcher | null = null;
 
-if (!filePath) {
-  console.error("Usage: bun run src/server/index.ts <file.bunbk.md>");
-  process.exit(1);
-}
-
-const fullPath = join(process.cwd(), filePath);
 const publicDir = join(import.meta.dir, "public");
 
 const server = Bun.serve({
@@ -18,19 +14,35 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
 
-    // 1. Upgrade to WebSocket for live updates
     if (url.pathname === "/ws") {
       const upgraded = server.upgrade(req);
       if (upgraded) return undefined;
     }
 
-    // 2. API: Get latest notebook data
-    if (url.pathname === "/api/notebook") {
-      const result = await runNotebook(fullPath);
-      return Response.json(result);
+    if (url.pathname === "/api/files") {
+      const files = await scanForBunbooks(process.cwd());
+      return Response.json({ files, current: currentFilePath });
     }
 
-    // 3. Static File Server
+    if (url.pathname === "/api/notebook") {
+      const fileParam = url.searchParams.get("file");
+      if (fileParam) {
+        currentFilePath = fileParam;
+        setupWatcher(currentFilePath);
+      }
+      
+      if (!currentFilePath) {
+        return new Response("No file selected", { status: 400 });
+      }
+      
+      try {
+        const result = await runNotebook(currentFilePath);
+        return Response.json(result);
+      } catch (e) {
+        return new Response(String(e), { status: 500 });
+      }
+    }
+
     let path = url.pathname === "/" ? "/index.html" : url.pathname;
     const file = Bun.file(join(publicDir, path));
     if (await file.exists()) {
@@ -42,7 +54,6 @@ const server = Bun.serve({
   websocket: {
     open(ws) {
       ws.subscribe("notebook-updates");
-      console.log("Client connected via WebSocket");
     },
     message(ws, message) {},
     close(ws) {
@@ -51,13 +62,33 @@ const server = Bun.serve({
   },
 });
 
-// Watch for file changes
-watch(fullPath, async (event, filename) => {
-  if (filename) {
-    console.log(`File changed: ${filename}. Notifying clients...`);
-    server.publish("notebook-updates", JSON.stringify({ type: "reload" }));
+async function scanForBunbooks(dir: string, baseDir = ""): Promise<string[]> {
+  const entries = await readdir(join(dir, baseDir), { withFileTypes: true });
+  let files: string[] = [];
+
+  for (const entry of entries) {
+    const fullRelativePath = join(baseDir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      files = [...files, ...(await scanForBunbooks(dir, fullRelativePath))];
+    } else if (entry.name.endsWith(".bunbk.md")) {
+      files.push(fullRelativePath);
+    }
   }
-});
+
+  return files;
+}
+
+function setupWatcher(path: string) {
+    if (watcher) watcher.close();
+    console.log(`Watching: ${path}`);
+    watcher = watch(path, (event, filename) => {
+        server.publish("notebook-updates", JSON.stringify({ type: "reload", file: path }));
+    });
+}
+
+if (currentFilePath) {
+    setupWatcher(currentFilePath);
+}
 
 console.log(`Bunbook Server started at http://localhost:${port}`);
-console.log(`Watching: ${fullPath}`);

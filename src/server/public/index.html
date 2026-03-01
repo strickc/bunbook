@@ -5,18 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bunbook Interactive</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Using a basic Markdown library for the demo, can swap to remark later -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.min.css">
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.0.0/dist/markdown-it.min.js"></script>
 </head>
 <body>
-    <header>
-        <h1>Bunbook<span>.js</span></h1>
-        <div id="status">Connected</div>
-    </header>
-    <main id="notebook">
-        <!-- Rendered results will be injected here -->
-        <p>Loading notebook...</p>
-    </main>
+    <div class="layout">
+        <aside id="sidebar">
+            <header>
+                <h1>Bun<span>book</span></h1>
+            </header>
+            <nav id="file-list">
+                <!-- Files will be injected here -->
+            </nav>
+        </aside>
+        
+        <div class="content">
+            <header class="top-bar">
+                <div id="current-filename">Select a notebook...</div>
+                <div id="status" class="status-indicator">Connected</div>
+            </header>
+            
+            <main id="notebook">
+                <p>Please select a <code>.bunbk.md</code> file from the sidebar.</p>
+            </main>
+        </div>
+    </div>
     <script src="app.js"></script>
 </body>
 </html>
