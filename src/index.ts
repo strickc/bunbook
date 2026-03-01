@@ -61,7 +61,7 @@ Options:
         finalMarkdown += `\`\`\`typescript\n${block.code.trim()}\n\`\`\`\n`;
         if (!isSaving) finalMarkdown += `\x1b[39m`;
       }
-      const outputs = result.outputs.get(blockIndex) || [];
+      const outputs = result.outputs[blockIndex] || [];
       if (outputs.length > 0) {
         if (!isSaving) finalMarkdown += `\x1b[32mOutput:\x1b[39m\n`; else finalMarkdown += `\n**Output:**\n`;
         finalMarkdown += `\`\`\`text\n${outputs.join("\n")}\n\`\`\`\n`;

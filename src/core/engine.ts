@@ -11,7 +11,7 @@ export interface BunbookBlock {
 export interface BunbookResult {
   originalLines: string[];
   blocks: BunbookBlock[];
-  outputs: Map<number, string[]>;
+  outputs: Record<number, string[]>;
   stderr: string;
 }
 
@@ -71,16 +71,16 @@ export async function runNotebook(filePath: string): Promise<BunbookResult> {
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();
 
-  const outputs = new Map<number, string[]>();
+  const outputs: Record<number, string[]> = {};
   let currentBlockIndex = -1;
   stdout.split("\n").forEach((line) => {
     if (line.startsWith(">>BUNBOOK_START:")) {
       currentBlockIndex = parseInt(line.split(":")[1]);
-      outputs.set(currentBlockIndex, []);
+      outputs[currentBlockIndex] = [];
     } else if (line.startsWith(">>BUNBOOK_END:")) {
       currentBlockIndex = -1;
     } else if (currentBlockIndex !== -1 && line !== "") {
-      outputs.get(currentBlockIndex)?.push(line);
+      outputs[currentBlockIndex]?.push(line);
     }
   });
 
