@@ -108,6 +108,21 @@ const server = Bun.serve({
       return Response.json(result);
     }
 
+    if (url.pathname === "/api/save-notebook" && req.method === "POST") {
+        const { file, chunks } = await req.json() as { file: string, chunks: {type: string, content: string}[] };
+        let newContent = "";
+        chunks.forEach(chunk => {
+            if (chunk.type === 'buneval') {
+                newContent += `\`\`\`buneval\n${chunk.content}\n\`\`\`\n\n`;
+            } else {
+                newContent += `${chunk.content}\n\n`;
+            }
+        });
+        await Bun.write(join(process.cwd(), file), newContent.trim() + "\n");
+        const result = await runNotebook(file);
+        return Response.json(result);
+    }
+
     let path = url.pathname === "/" ? "/index.html" : url.pathname;
     const file = Bun.file(join(publicDir, path));
     if (await file.exists()) return new Response(file);

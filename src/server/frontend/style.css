@@ -1,44 +1,24 @@
 * { box-sizing: border-box; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    background-color: #f4f6fb;
-    color: #2e3b4e;
-    margin: 0; padding: 0;
+    line-height: 1.6; background-color: #f4f6fb; color: #2e3b4e; margin: 0; padding: 0;
     height: 100vh; overflow: hidden;
 }
-.layout {
-    display: flex;
-    height: 100vh;
-}
+.layout { display: flex; height: 100vh; }
 
-/* Sidebar Styling */
 #sidebar {
-    width: 280px;
-    background: #1a202c;
-    color: #edf2f7;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #4a5568;
+    width: 280px; background: #1a202c; color: #edf2f7; display: flex;
+    flex-direction: column; border-right: 1px solid #4a5568;
 }
 #sidebar header { padding: 20px; border-bottom: 1px solid #2d3748; }
 #sidebar h1 { margin: 0; font-size: 1.5rem; color: #fff; }
 #sidebar h1 span { color: #fe4a49; }
-
-#file-list {
-    flex: 1; overflow-y: auto; padding: 15px 0;
-}
-.file-item {
-    padding: 10px 20px; cursor: pointer; color: #a0aec0; transition: all 0.2s;
-    font-size: 0.9em;
-}
+#file-list { flex: 1; overflow-y: auto; padding: 15px 0; }
+.file-item { padding: 10px 20px; cursor: pointer; color: #a0aec0; transition: all 0.2s; font-size: 0.9em; }
 .file-item:hover { background: #2d3748; color: #fff; }
 .file-item.active { background: #fe4a49; color: #fff; font-weight: bold; }
 
-/* Main Content Area */
-.content {
-    flex: 1; display: flex; flex-direction: column; overflow-y: auto;
-}
+.content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
 .top-bar {
     background: #fff; border-bottom: 1px solid #e2e8f0; padding: 15px 30px;
     display: flex; justify-content: space-between; align-items: center;
@@ -46,82 +26,81 @@ body {
 }
 #current-filename { font-weight: bold; color: #1a202c; }
 
-/* Notebook Renderer Styles */
 #notebook { padding: 40px; width: 100%; max-width: 1000px; margin: 0 auto; }
-.notebook-block {
-    background: transparent; padding: 0; margin-bottom: 30px;
-}
-.notebook-markdown { margin: 20px 0; }
 
-.block-header {
-    background: #f1f5f9;
-    padding: 6px 12px;
+/* Universal Chunk Styling */
+.notebook-chunk { margin-bottom: 20px; position: relative; }
+
+/* Markdown Cells - Toggling Modes */
+.markdown-chunk .chunk-preview {
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: text;
+    transition: background 0.1s;
+    min-height: 1em;
+}
+.markdown-chunk .chunk-preview:hover {
+    background: rgba(0,0,0,0.03);
+    outline: 1px solid rgba(0,0,0,0.05);
+}
+.markdown-chunk.editing .chunk-preview { display: none; }
+
+.markdown-chunk .chunk-editor {
+    display: none;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-    margin-bottom: 8px;
-    width: fit-content;
-    min-width: 150px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+.markdown-chunk.editing .chunk-editor { display: block; }
+
+.markdown-chunk .cm-editor { background: transparent !important; }
+.markdown-chunk .cm-gutters { background: transparent !important; border: none !important; }
+.markdown-chunk .cm-focused { outline: none !important; }
+
+/* Buneval (Code) Cells */
+.buneval-chunk { margin-bottom: 30px; }
+.block-header {
+    background: #f1f5f9; padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; margin-bottom: 8px; width: fit-content; min-width: 150px;
 }
 .block-header:hover { background: #e2e8f0; }
 .block-title { font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
 
-.notebook-code-editor {
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
-    margin: 10px 0;
-    display: none;
+.buneval-chunk .chunk-editor {
+    border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin: 10px 0;
 }
-.notebook-block.expanded .notebook-code-editor {
-    display: block;
-}
+.buneval-chunk.collapsed .chunk-editor { display: none; }
 
 .notebook-output {
-    padding: 2px 0 2px 20px;
-    margin: 15px 0;
-    font-size: 0.95em;
-    border-left: 4px solid #48bb78;
-    color: #4a5568;
+    padding: 2px 0 2px 20px; margin: 15px 0; font-size: 0.95em;
+    border-left: 4px solid #48bb78; color: #4a5568;
 }
 
-/* Tables in Output - Normal MD Look */
+/* Red Left Bar for Errors */
+.notebook-chunk.has-errors .notebook-output {
+    border-left-color: #fe4a49;
+}
+
+/* Tables */
 .notebook-output table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    margin: 15px 0; 
-    background: white;
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    width: 100%; border-collapse: collapse; margin: 15px 0; background: white;
+    border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.notebook-output th, .notebook-output td { 
-    padding: 10px 14px; 
-    border: 1px solid #e2e8f0; 
-    text-align: left; 
-}
-.notebook-output th { 
-    background: #f8fafc; 
-    font-weight: 600;
-    color: #334155;
-    border-bottom: 2px solid #e2e8f0;
-}
+.notebook-output th, .notebook-output td { padding: 10px 14px; border: 1px solid #e2e8f0; text-align: left; }
+.notebook-output th { background: #f8fafc; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
 .notebook-output tr:nth-child(even) { background: #fdfdfd; }
-
-.status-indicator { font-size: 0.8em; color: #48bb78; }
-.status-indicator.disconnected { color: #fe4a49; }
 
 .cm-editor { height: auto; }
 .cm-scroller { font-family: inherit; }
+.buneval-chunk .cm-scroller { font-family: "Fira Code", monospace; }
 
+.status-indicator { font-size: 0.8em; color: #48bb78; }
 .cm-lintRange-error {
     background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='3'%3E%3Cpath d='M0 3 L3 0 L6 3' fill='none' stroke='%23ff0000' stroke-width='.7'/%3E%3C/svg%3E");
-    background-repeat: repeat-x;
-    background-position: bottom;
-    padding-bottom: 1px;
+    background-repeat: repeat-x; background-position: bottom;
 }
-.cm-lint-marker-error { color: #ff0000; }
+.cm-tooltip-lint { padding: 5px; font-size: 0.85em; color: #fe4a49; }
+
+.hidden { display: none; }

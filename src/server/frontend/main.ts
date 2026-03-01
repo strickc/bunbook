@@ -1,5 +1,6 @@
 import { EditorView, basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
+import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
 import { keymap, hoverTooltip } from "@codemirror/view";
@@ -7,7 +8,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { autocompletion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { lintGutter, linter, Diagnostic } from "@codemirror/lint";
 import * as MarkdownIt from "markdown-it";
-import { type BunbookResult, type BunbookBlock } from "../../core/engine.js";
+import { type BunbookResult, type BunbookBlock, type NotebookChunk } from "../../core/engine.js";
 
 // @ts-ignore
 const md = new MarkdownIt.default();
@@ -17,7 +18,7 @@ const fileListElement = document.getElementById("file-list");
 const sidebarTitle = document.getElementById("current-filename");
 
 let currentFile: string | null = null;
-const editors = new Map<number, EditorView>();
+const chunkEditors = new Map<number, EditorView>();
 
 const tsWorker = new Worker("worker.js");
 let pendingDiagnostics = new Map<number, Diagnostic[]>();
@@ -51,15 +52,17 @@ const notebookProject = {
         let source = "";
         const offsets: { blockIndex: number, start: number, end: number }[] = [];
         let currentOffset = 0;
-        const blockIndices = Array.from(editors.keys()).sort((a, b) => a - b);
-        for (const index of blockIndices) {
-            const editor = editors.get(index);
-            if (!editor) continue;
-            const code = editor.state.doc.toString();
-            source += code + "\n\n";
-            offsets.push({ blockIndex: index, start: currentOffset, end: currentOffset + code.length });
-            currentOffset += code.length + 2;
-        }
+        Array.from(chunkEditors.keys()).sort((a,b) => a-b).forEach(chunkIndex => {
+            const editor = chunkEditors.get(chunkIndex);
+            if (!editor) return;
+            const chunk = lastNotebookData?.chunks[chunkIndex];
+            if (chunk?.type === 'buneval') {
+                const code = editor.state.doc.toString();
+                source += code + "\n\n";
+                offsets.push({ blockIndex: chunkIndex, start: currentOffset, end: currentOffset + code.length });
+                currentOffset += code.length + 2;
+            }
+        });
         return { source, offsets };
     },
     mapOffset(globalOffset: number, offsets: { blockIndex: number, start: number, end: number }[]) {
@@ -77,13 +80,13 @@ function notebookCompletions(context: CompletionContext): CompletionResult | nul
   if (!word || (word.from === word.to && !context.explicit)) return null;
   const options: { label: string, type: string, info: string }[] = [];
   const seen = new Set<string>();
-  editors.forEach((view, index) => {
+  chunkEditors.forEach((view, index) => {
     const text = view.state.doc.toString();
     const matches = text.matchAll(/(?:const|let|var|function)\s+([a-zA-Z0-9_$]+)/g);
     for (const match of matches) {
       const name = match[1];
       if (!seen.has(name)) {
-        options.push({ label: name, type: 'variable', info: `From Block ${index}` });
+        options.push({ label: name, type: 'variable', info: `From Chunk ${index}` });
         seen.add(name);
       }
     }
@@ -94,8 +97,7 @@ function notebookCompletions(context: CompletionContext): CompletionResult | nul
 function notebookLinter(view: EditorView) {
     const { source } = notebookProject.getUnifiedSource();
     let activeIndex = -1;
-    editors.forEach((v, idx) => { if (v === view) activeIndex = idx; });
-
+    chunkEditors.forEach((v, idx) => { if (v === view) activeIndex = idx; });
     return new Promise<Diagnostic[]>((resolve) => {
         diagResolve = (all: Map<number, Diagnostic[]>) => {
             resolve(all.get(activeIndex) || []);
@@ -107,16 +109,12 @@ function notebookLinter(view: EditorView) {
 function notebookTooltips() {
   return hoverTooltip((view, pos) => {
     let activeIndex = -1;
-    editors.forEach((v, idx) => { if (v === view) activeIndex = idx; });
-    
+    chunkEditors.forEach((v, idx) => { if (v === view) activeIndex = idx; });
     const blockDiags = pendingDiagnostics.get(activeIndex) || [];
     const found = blockDiags.find(d => pos >= d.from && pos <= d.to);
-    
     if (!found) return null;
     return {
-      pos: found.from,
-      end: found.to,
-      above: true,
+      pos: found.from, end: found.to, above: true,
       create() {
         const dom = document.createElement("div");
         dom.className = "cm-tooltip-lint";
@@ -146,18 +144,19 @@ async function selectFile(file: string) {
   currentFile = file;
   if (sidebarTitle) sidebarTitle.innerText = file;
   document.querySelectorAll('.file-item').forEach(el => {
-      if (el instanceof HTMLElement) {
-          el.classList.toggle('active', el.innerText === file);
-      }
+      if (el instanceof HTMLElement) el.classList.toggle('active', el.innerText === file);
   });
   fetchNotebook(file);
 }
+
+let lastNotebookData: BunbookResult | null = null;
 
 async function fetchNotebook(file: string | null = currentFile) {
   if (!file) return;
   try {
     const response = await fetch(`/api/notebook?file=${encodeURIComponent(file)}`);
     const data = await response.json() as BunbookResult;
+    lastNotebookData = data;
     renderNotebook(data);
   } catch (err) { console.error("Error fetching notebook:", err); }
 }
@@ -165,189 +164,173 @@ async function fetchNotebook(file: string | null = currentFile) {
 function renderNotebook(data: BunbookResult) {
   if (!notebookElement) return;
   notebookElement.innerHTML = "";
-  editors.clear();
-  let currentGroup: string[] = [];
+  chunkEditors.clear();
 
-  data.originalLines.forEach((line: string, i: number) => {
-    const blockIndex = data.blocks.findIndex((b: BunbookBlock) => b.lineStart === i);
-    if (blockIndex !== -1) {
-      if (currentGroup.length > 0) {
-        const div = document.createElement("div");
-        div.className = "notebook-markdown";
-        div.innerHTML = md.render(currentGroup.join("\n"));
-        notebookElement.appendChild(div);
-        currentGroup = [];
-      }
-      const block = data.blocks[blockIndex];
-      const resGroup = document.createElement("div");
-      resGroup.className = "notebook-block collapsed";
-
-      const header = document.createElement("div");
-      header.className = "block-header";
-      header.innerHTML = `
-        <span class="block-title">Code Block ${blockIndex}</span>
-        <span class="block-toggle-icon">▼</span>
-      `;
-      header.onclick = () => {
-          resGroup.classList.toggle("collapsed");
-          resGroup.classList.toggle("expanded");
-          const icon = header.querySelector(".block-toggle-icon");
-          if (icon) icon.textContent = resGroup.classList.contains("collapsed") ? "▼" : "▲";
-      };
-      resGroup.appendChild(header);
-
-      const editorContainer = document.createElement("div");
-      editorContainer.className = "notebook-code-editor";
-      resGroup.appendChild(editorContainer);
-
-      const view = new EditorView({
-        state: EditorState.create({
-          doc: block.code.trim(),
-          extensions: [
-            basicSetup,
-            javascript({ typescript: true }),
-            oneDark,
-            autocompletion({ override: [notebookCompletions] }),
-            lintGutter(),
-            linter(view => notebookLinter(view)),
-            notebookTooltips(),
-            keymap.of([
-              indentWithTab,
-              { key: "Shift-Enter", run: () => { 
-                  if (currentFile) saveChanges(blockIndex, view.state.doc.toString()); 
-                  return true; 
-              } }
-            ]),
-            EditorView.updateListener.of((update) => {
-              if (update.docChanged) onCodeChange(blockIndex, view.state.doc.toString());
-            })
-          ]
-        }),
-        parent: editorContainer
-      });
-      editors.set(blockIndex, view);
+  data.chunks.forEach((chunk, index) => {
+      const chunkWrapper = document.createElement("div");
+      chunkWrapper.className = `notebook-chunk ${chunk.type}-chunk`;
       
-      const blockOutputs = data.outputs[blockIndex] || [];
-      if (blockOutputs.length > 0) {
-        const outDiv = document.createElement("div");
-        outDiv.className = "notebook-output";
-        outDiv.innerHTML = formatOutput(blockOutputs);
-        resGroup.appendChild(outDiv);
+      if (chunk.type === 'markdown') {
+          const previewDiv = document.createElement("div");
+          previewDiv.className = "chunk-preview";
+          previewDiv.innerHTML = md.render(chunk.content || "*Empty markdown block*");
+          
+          const editorContainer = document.createElement("div");
+          editorContainer.className = "chunk-editor";
+          
+          chunkWrapper.appendChild(previewDiv);
+          chunkWrapper.appendChild(editorContainer);
+
+          const view = new EditorView({
+              state: EditorState.create({
+                  doc: chunk.content,
+                  extensions: [
+                      basicSetup, oneDark, markdown(),
+                      EditorView.domEventHandlers({
+                          blur: () => {
+                              chunkWrapper.classList.remove('editing');
+                              previewDiv.innerHTML = md.render(view.state.doc.toString() || "*Empty markdown block*");
+                              triggerSave();
+                          }
+                      }),
+                      EditorView.updateListener.of((update) => { if (update.docChanged) onContentChange(); })
+                  ]
+              }),
+              parent: editorContainer
+          });
+          chunkEditors.set(index, view);
+
+          previewDiv.onclick = () => {
+              chunkWrapper.classList.add('editing');
+              view.focus();
+          };
+      } else {
+          const header = document.createElement("div");
+          header.className = "block-header";
+          header.innerHTML = `<span class="block-title">Code Block ${chunk.blockIndex}</span><span class="block-toggle-icon">▼</span>`;
+          
+          const editorContainer = document.createElement("div");
+          editorContainer.className = "chunk-editor";
+          
+          chunkWrapper.appendChild(header);
+          chunkWrapper.appendChild(editorContainer);
+          chunkWrapper.classList.add('collapsed');
+          
+          header.onclick = () => {
+              chunkWrapper.classList.toggle('collapsed');
+              chunkWrapper.classList.toggle('expanded');
+              const icon = header.querySelector(".block-toggle-icon");
+              if (icon) icon.textContent = chunkWrapper.classList.contains("collapsed") ? "▼" : "▲";
+          };
+
+          const view = new EditorView({
+              state: EditorState.create({
+                  doc: chunk.content,
+                  extensions: [
+                      basicSetup, oneDark, javascript({ typescript: true }),
+                      autocompletion({ override: [notebookCompletions] }),
+                      lintGutter(), linter(view => notebookLinter(view)),
+                      notebookTooltips(),
+                      keymap.of([
+                          indentWithTab,
+                          { key: "Shift-Enter", run: () => { triggerSave(); return true; } }
+                      ]),
+                      EditorView.updateListener.of((update) => { if (update.docChanged) onContentChange(); })
+                  ]
+              }),
+              parent: editorContainer
+          });
+          chunkEditors.set(index, view);
+
+          const outDiv = document.createElement("div");
+          outDiv.className = "notebook-output";
+          const outputs = data.outputs[chunk.blockIndex!] || [];
+          outDiv.innerHTML = formatOutput(outputs);
+          chunkWrapper.appendChild(outDiv);
       }
-      notebookElement.appendChild(resGroup);
-    } else {
-      const isInsideAnyBlock = data.blocks.some((b: BunbookBlock) => i >= b.lineStart && i <= b.lineEnd);
-      if (!isInsideAnyBlock) {
-          currentGroup.push(line);
-      }
-    }
+
+      notebookElement.appendChild(chunkWrapper);
   });
-
-  if (currentGroup.length > 0) {
-    const lastDiv = document.createElement("div");
-    lastDiv.className = "notebook-markdown";
-    lastDiv.innerHTML = md.render(currentGroup.join("\n"));
-    notebookElement.appendChild(lastDiv);
-  }
 }
 
-let debounceTimer: Timer | null = null;
-function onCodeChange(blockIndex: number, newCode: string) {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => { saveChanges(blockIndex, newCode); }, 500);
+let saveTimer: Timer | null = null;
+function onContentChange() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { triggerSave(); }, 800);
 }
 
-async function saveChanges(blockIndex: number, newCode: string) {
-    if (!currentFile) return;
+async function triggerSave() {
+    if (!currentFile || !lastNotebookData) return;
+    const blocks = lastNotebookData.chunks.map((chunk, index) => {
+        const editor = chunkEditors.get(index);
+        return { type: chunk.type, content: editor ? editor.state.doc.toString() : chunk.content };
+    });
     try {
-        const response = await fetch("/api/save-block", {
+        const response = await fetch("/api/save-notebook", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file: currentFile, blockIndex, code: newCode })
+            body: JSON.stringify({ file: currentFile, chunks: blocks })
         });
         const data = await response.json() as BunbookResult;
-        updateUIWithResults(data);
-    } catch {
-        console.error("Failed to save changes");
-    }
+        lastNotebookData = data;
+        updateOutputsOnly(data);
+    } catch (err) { console.error("Save failed", err); }
 }
 
-function updateUIWithResults(data: BunbookResult) {
+function updateOutputsOnly(data: BunbookResult) {
     if (statusElement) statusElement.innerText = "Connected - Updated: " + data.timestamp;
-    
-    data.blocks.forEach((_block: BunbookBlock, index: number) => {
-        const blockDivs = document.querySelectorAll('.notebook-block');
-        const blockDiv = blockDivs[index];
-        if (blockDiv) {
-            let outDiv = blockDiv.querySelector('.notebook-output');
-            const blockOutputs = data.outputs[index] || [];
-            if (blockOutputs.length > 0) {
-                if (!outDiv) {
-                    outDiv = document.createElement('div');
-                    outDiv.className = 'notebook-output';
-                    blockDiv.appendChild(outDiv);
+    data.chunks.forEach((chunk, index) => {
+        if (chunk.type === 'buneval') {
+            const chunkWrappers = document.querySelectorAll('.notebook-chunk');
+            const wrapper = chunkWrappers[index];
+            if (wrapper) {
+                let outDiv = wrapper.querySelector('.notebook-output');
+                const outputs = data.outputs[chunk.blockIndex!] || [];
+                if (outputs.length > 0) {
+                    if (!outDiv) {
+                        outDiv = document.createElement('div');
+                        outDiv.className = 'notebook-output';
+                        wrapper.appendChild(outDiv);
+                    }
+                    outDiv.innerHTML = formatOutput(outputs);
+                } else if (outDiv) {
+                    outDiv.remove();
                 }
-                outDiv.innerHTML = formatOutput(blockOutputs);
-            } else if (outDiv) {
-                outDiv.remove();
             }
         }
     });
-    // Trigger a global re-lint once UI is updated
-    const { source } = notebookProject.getUnifiedSource();
-    tsWorker.postMessage({ type: "update", source });
 }
 
 function formatOutput(lines: string[]): string {
   if (lines.length === 0) return "";
   const isTable = lines.some(line => line.includes('┌') || line.includes('│'));
-  
   if (isTable) {
     const tableLines: string[] = [];
     const nonTableLines: string[] = [];
-    
     lines.forEach(line => {
       if (line.includes('│')) {
         const cells = line.split('│').map(c => c.trim());
         if (cells[0] === '') cells.shift();
         if (cells[cells.length - 1] === '') cells.pop();
-        
         if (cells.length > 0) {
             tableLines.push(`| ${cells.join(' | ')} |`);
-            // Add the separator row after the first row (the header)
-            if (tableLines.length === 1) {
-                tableLines.push(`| ${cells.map(() => '---').join(' | ')} |`);
-            }
+            if (tableLines.length === 1) tableLines.push(`| ${cells.map(() => '---').join(' | ')} |`);
         }
       } else if (!line.includes('─') && !line.includes('┌') && !line.includes('└') && line.trim() !== '') {
         nonTableLines.push(line);
       }
     });
-    
-    // Render the table markdown and then append the rest
-    const tableMd = tableLines.join('\n');
-    const result = md.render(tableMd) + nonTableLines.map(l => md.render(l)).join('\n');
-    return result;
+    return md.render(tableLines.join('\n')) + nonTableLines.map(l => md.render(l)).join('\n');
   }
-  
-  // Normal output: render each line through markdown
   return lines.map(line => md.render(line)).join('\n');
 }
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
-socket.onopen = () => { if (statusElement) statusElement.innerText = "Connected"; };
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    if (data.type === "reload" && data.file === currentFile) updateOutputsOnly();
+    if (data.type === "reload" && data.file === currentFile) fetchNotebook();
 };
-
-async function updateOutputsOnly() {
-    if (!currentFile) return;
-    const response = await fetch(`/api/notebook?file=${encodeURIComponent(currentFile)}`);
-    const data = await response.json() as BunbookResult;
-    updateUIWithResults(data);
-}
 
 loadFiles();
 if (!currentFile) fetchNotebook();

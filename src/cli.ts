@@ -8,6 +8,8 @@ async function run() {
   const { values, positionals } = parseArgs({
     args: Bun.argv.slice(2),
     options: {
+      serve: { type: "boolean", short: "S" },
+      port: { type: "string", short: "p" },
       output: { type: "string", short: "o" },
       save: { type: "boolean", short: "s" },
       "no-code": { type: "boolean" },
@@ -16,7 +18,7 @@ async function run() {
     },
     strict: true,
     allowPositionals: true,
-  }) as { values: { output?: string, save?: boolean, "no-code"?: boolean, agents?: boolean, help?: boolean }, positionals: string[] };
+  }) as { values: { serve?: boolean, port?: string, output?: string, save?: boolean, "no-code"?: boolean, agents?: boolean, help?: boolean }, positionals: string[] };
 
   if (values.agents) {
     const agentsPath = join(import.meta.dir, "..", "AGENTS.md");
@@ -29,14 +31,17 @@ async function run() {
     process.exit(0);
   }
 
-  if (values.help || (positionals.length === 0 && !values.agents)) {
+  if (values.help || (positionals.length === 0 && !values.agents && !values.serve)) {
     console.log(`
-Bunbook CLI - Execute Markdown notebooks with Bun
+Bunbook CLI - Execute and Serve Markdown notebooks with Bun
 
 Usage:
   bunbook <file.bunbk.md> [options]
+  bunbook --serve [file.bunbk.md] [options]
 
 Options:
+  -S, --serve            Start the interactive web server
+  -p, --port <number>    Port for the server (default: 3000)
   -s, --save             Save output to <name>.bkout.md
   -o, --output <path>    Save output to specified path
   --no-code              Exclude original code blocks in output
@@ -44,6 +49,23 @@ Options:
   -h, --help             Show help
     `);
     process.exit(0);
+  }
+
+  if (values.serve) {
+      // Launch the server
+      const serverPath = join(import.meta.dir, "server", "index.js");
+      const args = ["bun", serverPath, ...positionals];
+      if (values.port) args.push("-p", values.port);
+      if (values.agents) args.push("--agents");
+
+      const proc = Bun.spawn(args, {
+          stdout: "inherit",
+          stderr: "inherit",
+          stdin: "inherit",
+      });
+      process.on("SIGINT", () => proc.kill());
+      await proc.exited;
+      process.exit(0);
   }
 
   const filePath = positionals[0];
