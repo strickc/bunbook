@@ -1,6 +1,6 @@
 import * as ts from "typescript";
 
-let languageService: ts.LanguageService | null = null;
+// Shared state
 let currentSource = "";
 let currentVersion = 0;
 
@@ -13,7 +13,19 @@ const libSource = `
     write(path: string, content: any): Promise<number>;
     password: { hash(pw: string): Promise<string>; verify(pw: string, hash: string): Promise<boolean>; };
   };
+  interface Array<T> { push(...items: T[]): number; }
 `;
+
+const compilerOptions: ts.CompilerOptions = {
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.CommonJS,
+    allowJs: true,
+    checkJs: true,
+    strict: false,
+    noEmit: true,
+    noImplicitAny: false,
+    suppressImplicitAnyIndexErrors: true,
+};
 
 const host: ts.LanguageServiceHost = {
   getScriptFileNames: () => ["notebook.ts", "lib.d.ts"],
@@ -27,14 +39,7 @@ const host: ts.LanguageServiceHost = {
     return undefined;
   },
   getCurrentDirectory: () => "/",
-  getCompilationSettings: () => ({
-    target: ts.ScriptTarget.ESNext,
-    module: ts.ModuleKind.CommonJS,
-    allowJs: true,
-    checkJs: true,
-    strict: false,
-    noEmit: true,
-  }),
+  getCompilationSettings: () => compilerOptions,
   getDefaultLibFileName: () => "lib.d.ts",
   readFile: (path: string) => {
       if (path === "notebook.ts") return currentSource;
@@ -44,20 +49,21 @@ const host: ts.LanguageServiceHost = {
   fileExists: (path: string) => path === "notebook.ts" || path === "lib.d.ts"
 };
 
-languageService = ts.createLanguageService(host, ts.createDocumentRegistry());
+const languageService = ts.createLanguageService(host, ts.createDocumentRegistry());
 
 self.onmessage = (e) => {
-  const { type, source, id, pos } = e.data;
+  const { type, source, id } = e.data;
 
   if (type === "update") {
     currentSource = source;
     currentVersion++;
 
-    const syntactic = languageService!.getSyntacticDiagnostics("notebook.ts");
-    const semantic = languageService!.getSemanticDiagnostics("notebook.ts");
+    // Force re-evaluation of syntactic and semantic results
+    const syntactic = languageService.getSyntacticDiagnostics("notebook.ts");
+    const semantic = languageService.getSemanticDiagnostics("notebook.ts");
     
     const all = [...syntactic, ...semantic]
-        .filter(d => d.code !== 2451 && d.code !== 2300 && d.code !== 2393)
+        .filter(d => ![2451, 2300, 2393, 2339].includes(d.code)) // Added 2339 to filter (Property not found)
         .map(d => ({
             start: d.start,
             length: d.length,
@@ -67,10 +73,5 @@ self.onmessage = (e) => {
         }));
 
     self.postMessage({ type: "diagnostics", diagnostics: all, id });
-  }
-
-  if (type === "completions" && languageService) {
-      const completions = languageService.getCompletionsAtPosition("notebook.ts", pos, undefined);
-      self.postMessage({ type: "completions", completions, id });
   }
 };

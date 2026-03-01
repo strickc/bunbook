@@ -183,10 +183,6 @@ function renderNotebook(data: BunbookResult) {
       const editorContainer = document.createElement("div");
       editorContainer.className = "notebook-code-editor";
       resGroup.appendChild(editorContainer);
-      const controls = document.createElement("div");
-      controls.className = "cell-controls";
-      controls.innerHTML = `<span class="save-status"></span>`;
-      resGroup.appendChild(controls);
 
       const view = new EditorView({
         state: EditorState.create({
@@ -252,10 +248,6 @@ function onCodeChange(blockIndex: number, newCode: string) {
 
 async function saveChanges(blockIndex: number, newCode: string) {
     if (!currentFile) return;
-    const blockDivs = document.querySelectorAll('.notebook-block');
-    const blockDiv = blockDivs[blockIndex];
-    const statusSpan = blockDiv?.querySelector('.save-status');
-    if (statusSpan instanceof HTMLElement) statusSpan.innerText = "Saving...";
     try {
         const response = await fetch("/api/save-block", {
             method: "POST",
@@ -264,12 +256,8 @@ async function saveChanges(blockIndex: number, newCode: string) {
         });
         const data = await response.json() as BunbookResult;
         updateUIWithResults(data);
-        if (statusSpan instanceof HTMLElement) {
-            statusSpan.innerText = "Saved";
-            setTimeout(() => { if (statusSpan instanceof HTMLElement && statusSpan.innerText === "Saved") statusSpan.innerText = ""; }, 2000);
-        }
     } catch {
-        if (statusSpan instanceof HTMLElement) statusSpan.innerText = "Error!";
+        console.error("Failed to save changes");
     }
 }
 
