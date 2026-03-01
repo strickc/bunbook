@@ -10,7 +10,7 @@
     "check": "tsc --noEmit"
   },
   "bin": {
-    "bunbook": "src/index.ts"
+    "bunbook": "src/cli.ts"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
