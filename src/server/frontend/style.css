@@ -45,8 +45,13 @@ body {
 .cm-editor {
     height: auto;
 }
-.cm-scroller {
-    font-family: inherit;
+.cm-lintRange-error {
+    background: rgba(254, 74, 73, 0.1);
+    text-decoration: underline wavy #fe4a49;
+}
+.cm-lint-marker-error {
+    color: #fe4a49;
+    font-size: 0.8rem;
 }
 
 /* Cell Controls & Feedback */

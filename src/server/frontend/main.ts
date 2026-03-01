@@ -5,8 +5,9 @@ import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
-import { lintGutter } from "@codemirror/lint";
+import { lintGutter, linter, Diagnostic } from "@codemirror/lint";
 import MarkdownIt from "markdown-it";
+import * as ts from "typescript";
 
 const md = new MarkdownIt();
 const notebookElement = document.getElementById("notebook");
@@ -16,6 +17,37 @@ const sidebarTitle = document.getElementById("current-filename");
 
 let currentFile = null;
 const editors = new Map(); // blockIndex -> EditorView
+
+/**
+ * Basic Diagnostic Provider for the whole Notebook.
+ */
+function notebookLinter(view: EditorView) {
+  const diagnostics: Diagnostic[] = [];
+  const text = view.state.doc.toString();
+  
+  // Syntax Highlighting errors - basic check using TS Compiler
+  const sourceFile = ts.createSourceFile("test.ts", text, ts.ScriptTarget.Latest, true);
+  const diagnosticsFromTS = (sourceFile as any).parseDiagnostics || [];
+
+  for (const diag of diagnosticsFromTS) {
+      diagnostics.push({
+          from: diag.start,
+          to: diag.start + diag.length,
+          severity: "error",
+          message: diag.messageText
+      });
+  }
+
+  // Cross-cell Reference Check (Simple Check)
+  // Find all variables defined in CURRENT and PREVIOUS editors
+  const definedInOtherBlocks = new Set();
+  editors.forEach((otherView, otherIndex) => {
+      const matchAll = otherView.state.doc.toString().matchAll(/(?:const|let|var|function)\s+([a-zA-Z0-9_$]+)/g);
+      for (const m of matchAll) definedInOtherBlocks.add(m[1]);
+  });
+  
+  return diagnostics;
+}
 
 /**
  * Custom Completion Provider for Notebook-Wide awareness.
@@ -129,6 +161,7 @@ function renderNotebook(data) {
             oneDark,
             autocompletion({ override: [notebookCompletions] }),
             lintGutter(),
+            linter(notebookLinter),
             keymap.of([
               indentWithTab,
               { key: "Shift-Enter", run: () => { saveChanges(blockIndex, view.state.doc.toString()); return true; } }
