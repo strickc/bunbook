@@ -1,0 +1,21 @@
+{
+  "name": "bunbook",
+  "version": "0.1.0",
+  "description": "A Jupyter-like notebook system using Markdown and Bun",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "check": "tsc --noEmit"
+  },
+  "bin": {
+    "bunbook": "src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "bun-types": "latest"
+  }
+}

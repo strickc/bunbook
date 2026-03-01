@@ -1,0 +1,10 @@
+# Bun
+node_modules
+.bun-build
+.bunbrook_tmp_*
+*.bkout.md
+bun.lockb
+
+# OS
+.DS_Store
+Thumbs.db
