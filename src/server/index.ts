@@ -43,6 +43,12 @@ const server = Bun.serve({
       }
     }
 
+    if (url.pathname === "/api/save-block" && req.method === "POST") {
+      const { file, blockIndex, code } = await req.json() as { file: string, blockIndex: number, code: string };
+      await saveBlock(file, blockIndex, code);
+      return new Response("Saved", { status: 200 });
+    }
+
     let path = url.pathname === "/" ? "/index.html" : url.pathname;
     const file = Bun.file(join(publicDir, path));
     if (await file.exists()) {
@@ -77,6 +83,43 @@ async function scanForBunbooks(dir: string, baseDir = ""): Promise<string[]> {
   }
 
   return files;
+}
+
+async function saveBlock(filePath: string, blockIndex: number, newCode: string) {
+    const fullPath = join(process.cwd(), filePath);
+    const content = await readFile(fullPath, "utf-8");
+    const lines = content.split("\n");
+    
+    let blockCount = 0;
+    let inBlock = false;
+    let startLine = -1;
+    let endLine = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith("```buneval")) {
+            if (blockCount === blockIndex) {
+                startLine = i;
+            }
+            inBlock = true;
+        } else if (line.startsWith("```") && inBlock) {
+            if (blockCount === blockIndex) {
+                endLine = i;
+                break;
+            }
+            inBlock = false;
+            blockCount++;
+        }
+    }
+
+    if (startLine !== -1 && endLine !== -1) {
+        const newLines = [
+            ...lines.slice(0, startLine + 1),
+            newCode,
+            ...lines.slice(endLine)
+        ];
+        await writeFile(fullPath, newLines.join("\n"));
+    }
 }
 
 function setupWatcher(path: string) {

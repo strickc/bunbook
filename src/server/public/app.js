@@ -1,3 +1,10 @@
+import { EditorView, basicSetup } from "codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorState } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
+
 const md = window.markdownit();
 const notebookElement = document.getElementById("notebook");
 const statusElement = document.getElementById("status");
@@ -5,6 +12,7 @@ const fileListElement = document.getElementById("file-list");
 const sidebarTitle = document.getElementById("current-filename");
 
 let currentFile = null;
+const editors = new Map(); // blockIndex -> EditorView
 
 async function loadFiles() {
   const response = await fetch("/api/files");
@@ -28,7 +36,6 @@ async function selectFile(file) {
   currentFile = file;
   sidebarTitle.innerText = file;
   
-  // Highlight active file in sidebar
   document.querySelectorAll('.file-item').forEach(el => {
     el.classList.toggle('active', el.innerText === file);
   });
@@ -49,6 +56,7 @@ async function fetchNotebook(file = currentFile) {
 
 function renderNotebook(data) {
   notebookElement.innerHTML = "";
+  editors.clear();
   let currentGroup = [];
 
   for (let i = 0; i < data.originalLines.length; i++) {
@@ -67,10 +75,29 @@ function renderNotebook(data) {
       const resGroup = document.createElement("div");
       resGroup.className = "notebook-block";
 
-      const codeDiv = document.createElement("div");
-      codeDiv.className = "notebook-code";
-      codeDiv.innerHTML = `<pre><code>${block.code.trim()}</code></pre>`;
-      resGroup.appendChild(codeDiv);
+      const editorContainer = document.createElement("div");
+      editorContainer.className = "notebook-code-editor";
+      resGroup.appendChild(editorContainer);
+
+      // Initialize CodeMirror
+      const view = new EditorView({
+        state: EditorState.create({
+          doc: block.code.trim(),
+          extensions: [
+            basicSetup,
+            javascript({ typescript: true }),
+            oneDark,
+            keymap.of([indentWithTab]),
+            EditorView.updateListener.of((update) => {
+              if (update.docChanged) {
+                onCodeChange(blockIndex, view.state.doc.toString());
+              }
+            })
+          ]
+        }),
+        parent: editorContainer
+      });
+      editors.set(blockIndex, view);
 
       const blockOutputs = data.outputs[blockIndex] || [];
       if (blockOutputs.length > 0) {
@@ -93,6 +120,32 @@ function renderNotebook(data) {
     lastDiv.innerHTML = md.render(currentGroup.join("\n"));
     notebookElement.appendChild(lastDiv);
   }
+}
+
+let debounceTimer;
+function onCodeChange(blockIndex, newCode) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        saveChanges(blockIndex, newCode);
+    }, 500);
+}
+
+async function saveChanges(blockIndex, newCode) {
+    if (!currentFile) return;
+    try {
+        await fetch("/api/save-block", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                file: currentFile,
+                blockIndex,
+                code: newCode
+            })
+        });
+        // The server watcher will trigger an update, which will re-run the notebook.
+    } catch (err) {
+        console.error("Failed to save changes:", err);
+    }
 }
 
 function formatOutput(lines) {
@@ -122,7 +175,6 @@ function formatOutput(lines) {
   return lines.join("\n");
 }
 
-// Set up WebSocket
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
@@ -134,16 +186,44 @@ socket.onopen = () => {
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === "reload" && data.file === currentFile) {
-        fetchNotebook(currentFile);
+        // We only want to fetch and update outputs, 
+        // not re-render the whole thing which would reset the editors.
+        updateOutputsOnly();
     }
 };
+
+async function updateOutputsOnly() {
+    if (!currentFile) return;
+    const response = await fetch(`/api/notebook?file=${encodeURIComponent(currentFile)}`);
+    const data = await response.json();
+    
+    // Update outputs for each block div
+    data.blocks.forEach((block, index) => {
+        const blockDivs = document.querySelectorAll('.notebook-block');
+        const blockDiv = blockDivs[index];
+        if (blockDiv) {
+            let outDiv = blockDiv.querySelector('.notebook-output');
+            const blockOutputs = data.outputs[index] || [];
+            
+            if (blockOutputs.length > 0) {
+                if (!outDiv) {
+                    outDiv = document.createElement('div');
+                    outDiv.className = 'notebook-output';
+                    blockDiv.appendChild(outDiv);
+                }
+                outDiv.innerHTML = formatOutput(blockOutputs);
+            } else if (outDiv) {
+                outDiv.remove();
+            }
+        }
+    });
+}
 
 socket.onclose = () => {
     statusElement.innerText = "Disconnected";
     statusElement.className = "status-indicator disconnected";
 };
 
-// Initial Fetch
 loadFiles();
 if (!currentFile) {
     fetchNotebook();
