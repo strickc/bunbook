@@ -290,24 +290,45 @@ function updateUIWithResults(data: BunbookResult) {
 function formatOutput(lines: string[]): string {
   if (lines.length === 0) return "";
   const isTable = lines.some(line => line.includes('┌') || line.includes('│'));
+  
   if (isTable) {
     const table = document.createElement('table');
     table.className = 'output-table';
+    const nonTableLines: string[] = [];
+    
     lines.forEach(line => {
-      if (line.includes('─') && !line.includes('│')) return;
-      const row = document.createElement('tr');
-      const cells = line.split('│').filter(c => c.trim() !== '' || line.indexOf('│') !== line.lastIndexOf('│'));
-      if (cells.length > 0) {
-        cells.forEach(cell => {
-          const td = document.createElement(line.includes('index') ? 'th' : 'td');
-          td.innerText = cell.trim();
-          row.appendChild(td);
-        });
-        table.appendChild(row);
+      if (line.includes('│')) {
+        const row = document.createElement('tr');
+        // Split by │ and clean up. 
+        // console.table output usually looks like: │ (index) │ name │
+        const cells = line.split('│').map(c => c.trim());
+        
+        // Remove empty cells at the start/end caused by leading/trailing │
+        if (cells[0] === '') cells.shift();
+        if (cells[cells.length - 1] === '') cells.pop();
+
+        if (cells.length > 0) {
+          cells.forEach(cell => {
+            const isHeader = line.includes('index') || line.includes('┌') || line.includes('┬');
+            const td = document.createElement(isHeader ? 'th' : 'td');
+            td.innerText = cell;
+            row.appendChild(td);
+          });
+          table.appendChild(row);
+        }
+      } else if (!line.includes('─') && !line.includes('┌') && !line.includes('└') && line.trim() !== '') {
+        // Collect lines that are not part of the table decoration and not table rows
+        nonTableLines.push(line);
       }
     });
+    
     const container = document.createElement('div');
     container.appendChild(table);
+    if (nonTableLines.length > 0) {
+      const textDiv = document.createElement('pre');
+      textDiv.innerText = nonTableLines.join('\n');
+      container.appendChild(textDiv);
+    }
     return container.innerHTML;
   }
   return lines.join("\n");
