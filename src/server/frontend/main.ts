@@ -25,26 +25,22 @@ function notebookLinter(view: EditorView) {
   const diagnostics: Diagnostic[] = [];
   const text = view.state.doc.toString();
   
-  // Syntax Highlighting errors - basic check using TS Compiler
-  const sourceFile = ts.createSourceFile("test.ts", text, ts.ScriptTarget.Latest, true);
-  const diagnosticsFromTS = (sourceFile as any).parseDiagnostics || [];
+  try {
+    const sourceFile = ts.createSourceFile("test.ts", text, ts.ScriptTarget.Latest, true);
+    // TypeScript's internal parse errors
+    const tsDiags = (sourceFile as any).parseDiagnostics || [];
 
-  for (const diag of diagnosticsFromTS) {
-      diagnostics.push({
-          from: diag.start,
-          to: diag.start + diag.length,
-          severity: "error",
-          message: diag.messageText
-      });
+    for (const diag of tsDiags) {
+        diagnostics.push({
+            from: diag.start,
+            to: diag.start + diag.length,
+            severity: "error",
+            message: typeof diag.messageText === 'string' ? diag.messageText : diag.messageText.messageText
+        });
+    }
+  } catch (e) {
+    console.error("Linter error:", e);
   }
-
-  // Cross-cell Reference Check (Simple Check)
-  // Find all variables defined in CURRENT and PREVIOUS editors
-  const definedInOtherBlocks = new Set();
-  editors.forEach((otherView, otherIndex) => {
-      const matchAll = otherView.state.doc.toString().matchAll(/(?:const|let|var|function)\s+([a-zA-Z0-9_$]+)/g);
-      for (const m of matchAll) definedInOtherBlocks.add(m[1]);
-  });
   
   return diagnostics;
 }
