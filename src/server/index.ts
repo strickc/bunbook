@@ -1,7 +1,46 @@
+#!/usr/bin/env bun
 import { watch, type FSWatcher } from "fs";
 import { join } from "path";
-import { readdir } from "fs/promises";
+import { readdir, readFile } from "fs/promises";
+import { parseArgs } from "util";
 import { runNotebook } from "../core/engine.js";
+
+const { values, positionals } = parseArgs({
+  args: Bun.argv.slice(2),
+  options: {
+    port: { type: "string", short: "p" },
+    agents: { type: "boolean" },
+    help: { type: "boolean", short: "h" },
+  },
+  strict: true,
+  allowPositionals: true,
+}) as { values: { port?: string, agents?: boolean, help?: boolean }, positionals: string[] };
+
+if (values.help) {
+  console.log(`
+Bunbook Server - Interactive Markdown Notebooks
+
+Usage:
+  bunbook-serve [file.bunbk.md] [options]
+
+Options:
+  -p, --port <number>    Port to run the server on (default: 3000)
+  --agents             Print the AGENTS.md guide
+  -h, --help             Show help
+    `);
+  process.exit(0);
+}
+
+if (values.agents) {
+  const agentsPath = join(import.meta.dir, "..", "..", "AGENTS.md");
+  try {
+    const agentsMd = await readFile(agentsPath, "utf-8");
+    console.log(agentsMd);
+  } catch (e) {
+    console.error("Error: Could not find AGENTS.md");
+  }
+  process.exit(0);
+}
 
 async function buildFrontend() {
   const frontendDir = join(import.meta.dir, "frontend");
@@ -25,8 +64,8 @@ async function buildFrontend() {
 
 await buildFrontend();
 
-const port = process.env.PORT || 3000;
-let currentFilePath = process.argv[2] || null;
+const port = parseInt(values.port || process.env.PORT || "3000");
+let currentFilePath = positionals[0] || null;
 let watcher: FSWatcher | null = null;
 const publicDir = join(process.cwd(), "dist");
 
