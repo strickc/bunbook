@@ -13,6 +13,7 @@
     "bunbook": "src/index.ts"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3"
   },

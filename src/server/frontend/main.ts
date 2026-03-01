@@ -2,11 +2,12 @@ import { EditorView, basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { keymap, hoverTooltip } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
-import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
+import { autocompletion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { lintGutter, linter, Diagnostic } from "@codemirror/lint";
 import MarkdownIt from "markdown-it";
+import { type BunbookResult, type BunbookBlock } from "../../core/engine.js";
 
 const md = new MarkdownIt();
 const notebookElement = document.getElementById("notebook");
@@ -14,13 +15,12 @@ const statusElement = document.getElementById("status");
 const fileListElement = document.getElementById("file-list");
 const sidebarTitle = document.getElementById("current-filename");
 
-let currentFile = null;
+let currentFile: string | null = null;
 const editors = new Map<number, EditorView>();
 
-// Web Worker for TypeScript Semantic Checking
 const tsWorker = new Worker("worker.js");
 let pendingDiagnostics = new Map<number, Diagnostic[]>();
-let diagResolve: ((d: any) => void) | null = null;
+let diagResolve: ((d: Map<number, Diagnostic[]>) => void) | null = null;
 
 tsWorker.onmessage = (e) => {
     const { type, diagnostics } = e.data;
@@ -28,7 +28,7 @@ tsWorker.onmessage = (e) => {
         const { offsets } = notebookProject.getUnifiedSource();
         const results = new Map<number, Diagnostic[]>();
         
-        diagnostics.forEach((diag: any) => {
+        diagnostics.forEach((diag: { start: number, length: number, message: string }) => {
             const mapped = notebookProject.mapOffset(diag.start, offsets);
             if (mapped) {
                 if (!results.has(mapped.blockIndex)) results.set(mapped.blockIndex, []);
@@ -45,24 +45,23 @@ tsWorker.onmessage = (e) => {
     }
 };
 
-/**
- * Central Notebook Project State
- */
 const notebookProject = {
     getUnifiedSource() {
         let source = "";
-        const offsets = [];
+        const offsets: { blockIndex: number, start: number, end: number }[] = [];
         let currentOffset = 0;
         const blockIndices = Array.from(editors.keys()).sort((a, b) => a - b);
         for (const index of blockIndices) {
-            const code = editors.get(index)!.state.doc.toString();
+            const editor = editors.get(index);
+            if (!editor) continue;
+            const code = editor.state.doc.toString();
             source += code + "\n\n";
             offsets.push({ blockIndex: index, start: currentOffset, end: currentOffset + code.length });
             currentOffset += code.length + 2;
         }
         return { source, offsets };
     },
-    mapOffset(globalOffset: number, offsets: any[]) {
+    mapOffset(globalOffset: number, offsets: { blockIndex: number, start: number, end: number }[]) {
         for (const range of offsets) {
             if (globalOffset >= range.start && globalOffset <= range.end) {
                 return { blockIndex: range.blockIndex, localOffset: globalOffset - range.start };
@@ -72,18 +71,18 @@ const notebookProject = {
     }
 };
 
-function notebookCompletions(context: CompletionContext) {
-  let word = context.matchBefore(/\w*/);
+function notebookCompletions(context: CompletionContext): CompletionResult | null {
+  const word = context.matchBefore(/\w*/);
   if (!word || (word.from === word.to && !context.explicit)) return null;
-  const options = [];
-  const seen = new Set();
+  const options: { label: string, type: string, info: string }[] = [];
+  const seen = new Set<string>();
   editors.forEach((view, index) => {
     const text = view.state.doc.toString();
     const matches = text.matchAll(/(?:const|let|var|function)\s+([a-zA-Z0-9_$]+)/g);
     for (const match of matches) {
       const name = match[1];
       if (!seen.has(name)) {
-        options.push({ label: name, type: text.includes('function') ? 'function' : 'variable', info: `From Block ${index}` });
+        options.push({ label: name, type: 'variable', info: `From Block ${index}` });
         seen.add(name);
       }
     }
@@ -104,9 +103,33 @@ function notebookLinter(view: EditorView) {
     });
 }
 
+function notebookTooltips() {
+  return hoverTooltip((view, pos) => {
+    let activeIndex = -1;
+    editors.forEach((v, idx) => { if (v === view) activeIndex = idx; });
+    
+    const blockDiags = pendingDiagnostics.get(activeIndex) || [];
+    const found = blockDiags.find(d => pos >= d.from && pos <= d.to);
+    
+    if (!found) return null;
+    return {
+      pos: found.from,
+      end: found.to,
+      above: true,
+      create() {
+        const dom = document.createElement("div");
+        dom.className = "cm-tooltip-lint";
+        dom.textContent = found.message;
+        return { dom };
+      }
+    };
+  });
+}
+
 async function loadFiles() {
   const response = await fetch("/api/files");
-  const data = await response.json();
+  const data = await response.json() as { files: string[], current: string | null };
+  if (!fileListElement) return;
   fileListElement.innerHTML = "";
   data.files.forEach(file => {
     const div = document.createElement("div");
@@ -118,32 +141,34 @@ async function loadFiles() {
   if (data.current && !currentFile) selectFile(data.current);
 }
 
-async function selectFile(file) {
+async function selectFile(file: string) {
   currentFile = file;
-  sidebarTitle.innerText = file;
+  if (sidebarTitle) sidebarTitle.innerText = file;
   document.querySelectorAll('.file-item').forEach(el => {
-    el.classList.toggle('active', el.innerText === file);
+      if (el instanceof HTMLElement) {
+          el.classList.toggle('active', el.innerText === file);
+      }
   });
   fetchNotebook(file);
 }
 
-async function fetchNotebook(file = currentFile) {
+async function fetchNotebook(file: string | null = currentFile) {
   if (!file) return;
   try {
     const response = await fetch(`/api/notebook?file=${encodeURIComponent(file)}`);
-    const data = await response.json();
+    const data = await response.json() as BunbookResult;
     renderNotebook(data);
-  } catch (err) {
-    console.error("Error fetching notebook:", err);
-  }
+  } catch (err) { console.error("Error fetching notebook:", err); }
 }
 
-function renderNotebook(data) {
+function renderNotebook(data: BunbookResult) {
+  if (!notebookElement) return;
   notebookElement.innerHTML = "";
   editors.clear();
-  let currentGroup = [];
-  for (let i = 0; i < data.originalLines.length; i++) {
-    const blockIndex = data.blocks.findIndex(b => b.lineStart === i);
+  let currentGroup: string[] = [];
+
+  data.originalLines.forEach((line: string, i: number) => {
+    const blockIndex = data.blocks.findIndex((b: BunbookBlock) => b.lineStart === i);
     if (blockIndex !== -1) {
       if (currentGroup.length > 0) {
         const div = document.createElement("div");
@@ -173,9 +198,13 @@ function renderNotebook(data) {
             autocompletion({ override: [notebookCompletions] }),
             lintGutter(),
             linter(view => notebookLinter(view)),
+            notebookTooltips(),
             keymap.of([
               indentWithTab,
-              { key: "Shift-Enter", run: () => { saveChanges(blockIndex, view.state.doc.toString()); return true; } }
+              { key: "Shift-Enter", run: () => { 
+                  if (currentFile) saveChanges(blockIndex, view.state.doc.toString()); 
+                  return true; 
+              } }
             ]),
             EditorView.updateListener.of((update) => {
               if (update.docChanged) onCodeChange(blockIndex, view.state.doc.toString());
@@ -185,6 +214,7 @@ function renderNotebook(data) {
         parent: editorContainer
       });
       editors.set(blockIndex, view);
+      
       const blockOutputs = data.outputs[blockIndex] || [];
       if (blockOutputs.length > 0) {
         const outDiv = document.createElement("div");
@@ -193,11 +223,19 @@ function renderNotebook(data) {
         resGroup.appendChild(outDiv);
       }
       notebookElement.appendChild(resGroup);
-      i = block.lineEnd;
+      // Skip the rest of the lines in this block is not easily possible in forEach
+      // But engine blocks are parsed to skip lines.
     } else {
-      currentGroup.push(data.originalLines[i]);
+      // We only push if we are NOT inside a block. 
+      // The current simple approach might push block lines to markdown if not careful.
+      // Re-fix logic: if line index is within any block's range, skip.
+      const isInsideAnyBlock = data.blocks.some((b: BunbookBlock) => i >= b.lineStart && i <= b.lineEnd);
+      if (!isInsideAnyBlock) {
+          currentGroup.push(line);
+      }
     }
-  }
+  });
+
   if (currentGroup.length > 0) {
     const lastDiv = document.createElement("div");
     lastDiv.className = "notebook-markdown";
@@ -206,37 +244,39 @@ function renderNotebook(data) {
   }
 }
 
-let debounceTimer;
-function onCodeChange(blockIndex, newCode) {
-    clearTimeout(debounceTimer);
+let debounceTimer: Timer | null = null;
+function onCodeChange(blockIndex: number, newCode: string) {
+    if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => { saveChanges(blockIndex, newCode); }, 500);
 }
 
-async function saveChanges(blockIndex, newCode) {
+async function saveChanges(blockIndex: number, newCode: string) {
     if (!currentFile) return;
     const blockDivs = document.querySelectorAll('.notebook-block');
-    const statusSpan = blockDivs[blockIndex]?.querySelector('.save-status');
-    if (statusSpan) statusSpan.innerText = "Saving...";
+    const blockDiv = blockDivs[blockIndex];
+    const statusSpan = blockDiv?.querySelector('.save-status');
+    if (statusSpan instanceof HTMLElement) statusSpan.innerText = "Saving...";
     try {
         const response = await fetch("/api/save-block", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ file: currentFile, blockIndex, code: newCode })
         });
-        const data = await response.json();
+        const data = await response.json() as BunbookResult;
         updateUIWithResults(data);
-        if (statusSpan) {
+        if (statusSpan instanceof HTMLElement) {
             statusSpan.innerText = "Saved";
-            setTimeout(() => { if (statusSpan.innerText === "Saved") statusSpan.innerText = ""; }, 2000);
+            setTimeout(() => { if (statusSpan instanceof HTMLElement && statusSpan.innerText === "Saved") statusSpan.innerText = ""; }, 2000);
         }
-    } catch (err) {
-        if (statusSpan) statusSpan.innerText = "Error!";
+    } catch {
+        if (statusSpan instanceof HTMLElement) statusSpan.innerText = "Error!";
     }
 }
 
-function updateUIWithResults(data) {
-    statusElement.innerText = "Connected - Updated: " + data.timestamp;
-    data.blocks.forEach((block, index) => {
+function updateUIWithResults(data: BunbookResult) {
+    if (statusElement) statusElement.innerText = "Connected - Updated: " + data.timestamp;
+    
+    data.blocks.forEach((_block: BunbookBlock, index: number) => {
         const blockDivs = document.querySelectorAll('.notebook-block');
         const blockDiv = blockDivs[index];
         if (blockDiv) {
@@ -254,9 +294,12 @@ function updateUIWithResults(data) {
             }
         }
     });
+    // Trigger a global re-lint once UI is updated
+    const { source } = notebookProject.getUnifiedSource();
+    tsWorker.postMessage({ type: "update", source });
 }
 
-function formatOutput(lines) {
+function formatOutput(lines: string[]): string {
   if (lines.length === 0) return "";
   const isTable = lines.some(line => line.includes('┌') || line.includes('│'));
   if (isTable) {
@@ -284,7 +327,7 @@ function formatOutput(lines) {
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
-socket.onopen = () => { statusElement.innerText = "Connected"; };
+socket.onopen = () => { if (statusElement) statusElement.innerText = "Connected"; };
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === "reload" && data.file === currentFile) updateOutputsOnly();
@@ -293,7 +336,7 @@ socket.onmessage = (event) => {
 async function updateOutputsOnly() {
     if (!currentFile) return;
     const response = await fetch(`/api/notebook?file=${encodeURIComponent(currentFile)}`);
-    const data = await response.json();
+    const data = await response.json() as BunbookResult;
     updateUIWithResults(data);
 }
 

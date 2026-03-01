@@ -1,12 +1,9 @@
 import * as ts from "typescript";
 
-// Shared state for the Language Service
 let languageService: ts.LanguageService | null = null;
 let currentSource = "";
 let currentVersion = 0;
 
-// This worker won't have the standard libs (lib.d.ts) available locally in the virtual FS
-// So we define a skeleton 'lib' to avoid every cell being full of "Cannot find console/fetch" errors.
 const libSource = `
   declare var console: { log(...args: any[]): void; error(...args: any[]): void; table(obj: any): void; };
   declare function fetch(url: string, init?: any): Promise<any>;
@@ -35,16 +32,22 @@ const host: ts.LanguageServiceHost = {
     module: ts.ModuleKind.CommonJS,
     allowJs: true,
     checkJs: true,
-    strict: true,
+    strict: false,
     noEmit: true,
   }),
   getDefaultLibFileName: () => "lib.d.ts",
+  readFile: (path: string) => {
+      if (path === "notebook.ts") return currentSource;
+      if (path === "lib.d.ts") return libSource;
+      return undefined;
+  },
+  fileExists: (path: string) => path === "notebook.ts" || path === "lib.d.ts"
 };
 
 languageService = ts.createLanguageService(host, ts.createDocumentRegistry());
 
 self.onmessage = (e) => {
-  const { type, source, id } = e.data;
+  const { type, source, id, pos } = e.data;
 
   if (type === "update") {
     currentSource = source;
@@ -53,13 +56,21 @@ self.onmessage = (e) => {
     const syntactic = languageService!.getSyntacticDiagnostics("notebook.ts");
     const semantic = languageService!.getSemanticDiagnostics("notebook.ts");
     
-    const all = [...syntactic, ...semantic].map(d => ({
-        start: d.start,
-        length: d.length,
-        message: typeof d.messageText === "string" ? d.messageText : d.messageText.messageText,
-        category: d.category
-    }));
+    const all = [...syntactic, ...semantic]
+        .filter(d => d.code !== 2451 && d.code !== 2300 && d.code !== 2393)
+        .map(d => ({
+            start: d.start,
+            length: d.length,
+            message: typeof d.messageText === "string" ? d.messageText : d.messageText.messageText,
+            category: d.category,
+            code: d.code
+        }));
 
     self.postMessage({ type: "diagnostics", diagnostics: all, id });
+  }
+
+  if (type === "completions" && languageService) {
+      const completions = languageService.getCompletionsAtPosition("notebook.ts", pos, undefined);
+      self.postMessage({ type: "completions", completions, id });
   }
 };
