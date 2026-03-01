@@ -3,6 +3,25 @@ import { join } from "path";
 import { readdir } from "fs/promises";
 import { runNotebook } from "../core/engine.js";
 
+async function buildFrontend() {
+  const frontendDir = join(import.meta.dir, "frontend");
+  const publicDir = join(import.meta.dir, "public");
+  
+  console.log("Building frontend...");
+  await Bun.build({
+    entrypoints: [join(frontendDir, "main.ts")],
+    outdir: publicDir,
+    naming: "bundle.js",
+    minify: true,
+  });
+  
+  // Also copy index.html and style.css to public
+  await Bun.write(join(publicDir, "index.html"), await Bun.file(join(frontendDir, "index.html")).text());
+  await Bun.write(join(publicDir, "style.css"), await Bun.file(join(frontendDir, "style.css")).text());
+}
+
+await buildFrontend();
+
 const port = process.env.PORT || 3000;
 let currentFilePath = process.argv[2] || null;
 let watcher: FSWatcher | null = null;

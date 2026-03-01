@@ -17,6 +17,14 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "codemirror": "^6.0.1",
+    "@codemirror/view": "^6.0.0",
+    "@codemirror/state": "^6.0.0",
+    "@codemirror/language": "^6.0.0",
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/lang-javascript": "^6.0.0",
+    "@codemirror/theme-one-dark": "^6.0.0",
+    "markdown-it": "^14.1.0"
   }
 }

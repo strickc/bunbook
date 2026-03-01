@@ -4,8 +4,9 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
+import MarkdownIt from "markdown-it";
 
-const md = window.markdownit();
+const md = new MarkdownIt();
 const notebookElement = document.getElementById("notebook");
 const statusElement = document.getElementById("status");
 const fileListElement = document.getElementById("file-list");
