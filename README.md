@@ -4,8 +4,6 @@
 
 Think of it as Jupyter Notebooks, but specifically optimized for Bun developers featuring a single script context, integrated Markdown editing, and smart TypeScript IntelliSense.
 
-![Bunbook Demo](assets/demo.webm)
-
 ## Quick Install
 
 Install Bunbook globally on your machine:
@@ -53,15 +51,15 @@ Executable blocks are identified by the ```buneval``` code fence:
 # My Analysis
 
 We can define a shared state:
-\`\`\`buneval
+```buneval
 const data = await fetch("https://api.example.com/data").then(r => r.json());
-console.log(`Fetched \${data.length} items`);
-\`\`\`
+console.log(`Fetched ${data.length} items`);
+```
 
 And use it later:
-\`\`\`buneval
+```buneval
 console.table(data.slice(0, 5));
-\`\`\`
+```
 ```
 
 ## Advanced Config
