@@ -28,8 +28,13 @@ bun run bunbook.ts my_file.bunbk.md --no-code -o
 1.  **Iterative Development**: Use Bunbook to prototype complex logic or data processing steps across multiple blocks.
 2.  **Shared State**: Use a global `state` object or simple top-level variables to pass data between cells.
 3.  **Use `console.table()`**: For data arrays or complex objects, `console.table(data)` will be rendered as a beautiful, readable HTML table in the web server and CLI.
-4.  **Error Handling**: Each block is wrapped in a `try/catch`. If one block fails, the execution continues to the next block, allowing you to see partial results.
-5.  **Async Operations**: Perfect for testing APIs or crawling sites before committing to a full script.
+4.  **Markdown in Output**: Output strings are rendered as Markdown. Feel free to use:
+    - `# Headers` for titles
+    - `**Bold**` or `*Italic*`
+    - `- Bullet points` or `1. Numbered lists`
+    - `[Links](https://bun.sh)`
+    Multiple `console.log` calls will be concatenated into a single Markdown block.
+5.  **Error Handling**: Each block is wrapped in a `try/catch`. If one block fails, the execution continues to the next block, allowing you to see partial results.
 
 ## Example
 ```markdown

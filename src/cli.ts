@@ -63,8 +63,12 @@ Options:
       }
       const outputs = result.outputs[blockIndex] || [];
       if (outputs.length > 0) {
-        if (!isSaving) finalMarkdown += `\x1b[32mOutput:\x1b[39m\n`; else finalMarkdown += `\n**Output:**\n`;
-        finalMarkdown += `\`\`\`text\n${outputs.join("\n")}\n\`\`\`\n`;
+        if (!isSaving) {
+          finalMarkdown += `\x1b[32mOutput:\x1b[39m\n`;
+          finalMarkdown += `\`\`\`text\n${outputs.join("\n")}\n\`\`\`\n`;
+        } else {
+          finalMarkdown += `\n${outputs.join("\n")}\n`;
+        }
       }
       i = block.lineEnd;
     } else {
