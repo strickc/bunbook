@@ -4,7 +4,7 @@
 
 Think of it as Jupyter Notebooks, but specifically optimized for Bun developers featuring a single script context, integrated Markdown editing, and smart TypeScript IntelliSense.
 
-Here is a [demo video](https://github.com/strickc/bunbook/blob/main/assets/demo.webm) showing Bunbook in action.
+![Bunbook Demo](assets/demo.webm)
 
 ## Quick Install
 
