@@ -4,6 +4,7 @@
 We define a shared state object here.
 ```buneval
 const state = { count: 0, users: [] };
+const num: number = 2;
 function increment(number = 1) {
   state.count += number;
   return state.count;
@@ -17,7 +18,7 @@ We re-declare `const` (transpiled to `var`) and use the function from the previo
 const name = "Alice";
 state.users.push(name);
 increment(); 
-increment(2);
+increment(num);
 console.log(`Count is now: ${state.count}`);
 console.log(`Users: ${JSON.stringify(state.users)}`);
 ```
