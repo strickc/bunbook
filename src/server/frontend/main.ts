@@ -84,7 +84,6 @@ function renderNotebook(data) {
       controls.className = "cell-controls";
       controls.innerHTML = `
         <span class="save-status"></span>
-        <button class="run-btn" title="Run (Shift+Enter)"><i class="lucide-play"></i> Run</button>
       `;
       resGroup.appendChild(controls);
 
@@ -110,10 +109,6 @@ function renderNotebook(data) {
         parent: editorContainer
       });
       
-      controls.querySelector(".run-btn").addEventListener("click", () => {
-        saveChanges(blockIndex, view.state.doc.toString());
-      });
-
       editors.set(blockIndex, view);
 
       const blockOutputs = data.outputs[blockIndex] || [];
