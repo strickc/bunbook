@@ -5,13 +5,14 @@ import { runNotebook } from "../core/engine.js";
 
 async function buildFrontend() {
   const frontendDir = join(import.meta.dir, "frontend");
-  const publicDir = join(import.meta.dir, "public");
+  // Build to a root-level dist directory
+  const publicDir = join(process.cwd(), "dist");
   
   console.log("Building frontend...");
   await Bun.build({
     entrypoints: [
       join(frontendDir, "main.ts"),
-      join(frontendDir, "worker.ts") // Add worker as a build target
+      join(frontendDir, "worker.ts")
     ],
     outdir: publicDir,
     naming: "[name].js",
@@ -27,7 +28,7 @@ await buildFrontend();
 const port = process.env.PORT || 3000;
 let currentFilePath = process.argv[2] || null;
 let watcher: FSWatcher | null = null;
-const publicDir = join(import.meta.dir, "public");
+const publicDir = join(process.cwd(), "dist");
 
 const server = Bun.serve({
   port,

@@ -1,6 +1,7 @@
 # Bun
 node_modules
 .bun-build
+dist/
 .bunbrook_tmp_*
 *.bkout.md
 bun.lockb
