@@ -180,7 +180,22 @@ function renderNotebook(data: BunbookResult) {
       }
       const block = data.blocks[blockIndex];
       const resGroup = document.createElement("div");
-      resGroup.className = "notebook-block";
+      resGroup.className = "notebook-block collapsed";
+
+      const header = document.createElement("div");
+      header.className = "block-header";
+      header.innerHTML = `
+        <span class="block-title">Code Block ${blockIndex}</span>
+        <span class="block-toggle-icon">▼</span>
+      `;
+      header.onclick = () => {
+          resGroup.classList.toggle("collapsed");
+          resGroup.classList.toggle("expanded");
+          const icon = header.querySelector(".block-toggle-icon");
+          if (icon) icon.textContent = resGroup.classList.contains("collapsed") ? "▼" : "▲";
+      };
+      resGroup.appendChild(header);
+
       const editorContainer = document.createElement("div");
       editorContainer.className = "notebook-code-editor";
       resGroup.appendChild(editorContainer);
@@ -220,12 +235,7 @@ function renderNotebook(data: BunbookResult) {
         resGroup.appendChild(outDiv);
       }
       notebookElement.appendChild(resGroup);
-      // Skip the rest of the lines in this block is not easily possible in forEach
-      // But engine blocks are parsed to skip lines.
     } else {
-      // We only push if we are NOT inside a block. 
-      // The current simple approach might push block lines to markdown if not careful.
-      // Re-fix logic: if line index is within any block's range, skip.
       const isInsideAnyBlock = data.blocks.some((b: BunbookBlock) => i >= b.lineStart && i <= b.lineEnd);
       if (!isInsideAnyBlock) {
           currentGroup.push(line);
@@ -300,11 +310,7 @@ function formatOutput(lines: string[]): string {
     lines.forEach(line => {
       if (line.includes('│')) {
         const row = document.createElement('tr');
-        // Split by │ and clean up. 
-        // console.table output usually looks like: │ (index) │ name │
         const cells = line.split('│').map(c => c.trim());
-        
-        // Remove empty cells at the start/end caused by leading/trailing │
         if (cells[0] === '') cells.shift();
         if (cells[cells.length - 1] === '') cells.pop();
 
@@ -318,7 +324,6 @@ function formatOutput(lines: string[]): string {
           table.appendChild(row);
         }
       } else if (!line.includes('─') && !line.includes('┌') && !line.includes('└') && line.trim() !== '') {
-        // Collect lines that are not part of the table decoration and not table rows
         nonTableLines.push(line);
       }
     });

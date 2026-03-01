@@ -49,16 +49,36 @@ body {
 /* Notebook Renderer Styles */
 #notebook { padding: 40px; width: 100%; max-width: 1000px; margin: 0 auto; }
 .notebook-block {
-    background: white; padding: 2px 20px 20px 20px; margin-bottom: 25px;
+    background: white; padding: 0; margin-bottom: 25px;
     border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
 }
 .notebook-markdown { margin: 20px 0; }
-.notebook-code-editor {
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 10px 0;
+
+.block-header {
+    background: #f8fafc;
+    padding: 8px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
 }
+.block-header:hover { background: #f1f5f9; }
+.block-title { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; }
+
+.notebook-code-editor {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    display: none; /* Collapsed by default */
+}
+.notebook-block.expanded .notebook-code-editor {
+    display: block;
+    border-bottom: 1px solid #e2e8f0;
+}
+
 .cm-editor {
     height: auto;
 }
@@ -78,9 +98,8 @@ body {
 }
 
 .notebook-output {
-    background: #2d3748; color: #edf2f7; padding: 12px;
-    border-radius: 4px; margin-top: 10px;
-    font-family: inherit; font-size: 0.9em;
+    background: #2d3748; color: #edf2f7; padding: 16px;
+    font-family: "Fira Code", "Courier New", monospace; font-size: 0.9em;
     white-space: pre-wrap; border-left: 4px solid #48bb78;
 }
 
@@ -99,10 +118,15 @@ body {
     justify-content: flex-end;
     align-items: center;
     gap: 15px;
-    margin-top: 5px;
+    padding: 4px 16px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+.notebook-block.collapsed .cell-controls {
+    display: none;
 }
 .save-status {
-    font-size: 0.75rem;
-    color: #718096;
+    font-size: 0.7rem;
+    color: #94a3b8;
     font-style: italic;
 }
