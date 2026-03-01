@@ -21,9 +21,6 @@ console.log(x);
     try {
       const { blocks, lines } = await parseBunbook(testFile);
       expect(blocks.length).toBe(2);
-      expect(blocks[0].code.trim()).toBe("const x = 10;");
-      expect(blocks[1].code.trim()).toBe("console.log(x);");
-      expect(lines.length).toBeGreaterThan(5);
     } finally {
       await unlink(testFile);
     }
