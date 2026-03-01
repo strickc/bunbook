@@ -44,8 +44,8 @@ if (values.agents) {
 
 async function buildFrontend() {
   const frontendDir = join(import.meta.dir, "frontend");
-  // Build to a root-level dist directory
-  const publicDir = join(process.cwd(), "dist");
+  // Build to the package's own dist directory, not the current working directory
+  const publicDir = join(import.meta.dir, "../../dist");
   
   console.log("Building frontend...");
   await Bun.build({
@@ -67,7 +67,7 @@ await buildFrontend();
 const port = parseInt(values.port || process.env.PORT || "3000");
 let currentFilePath = positionals[0] || null;
 let watcher: FSWatcher | null = null;
-const publicDir = join(process.cwd(), "dist");
+const publicDir = join(import.meta.dir, "../../dist");
 
 const server = Bun.serve({
   port,

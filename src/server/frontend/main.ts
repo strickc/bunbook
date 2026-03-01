@@ -6,10 +6,11 @@ import { keymap, hoverTooltip } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { autocompletion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { lintGutter, linter, Diagnostic } from "@codemirror/lint";
-import MarkdownIt from "markdown-it";
+import * as MarkdownIt from "markdown-it";
 import { type BunbookResult, type BunbookBlock } from "../../core/engine.js";
 
-const md = new MarkdownIt();
+// @ts-ignore
+const md = new MarkdownIt.default();
 const notebookElement = document.getElementById("notebook");
 const statusElement = document.getElementById("status");
 const fileListElement = document.getElementById("file-list");
